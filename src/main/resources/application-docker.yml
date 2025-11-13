@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: java-rag-system
+
+# Model Configuration for Docker Environment
+model:
+  provider: self-hosted
+  self-hosted:
+    base-url: ${MODEL_BASE_URL:http://ollama:11434}
+    model-name: ${MODEL_NAME:llama2}
+    timeout-seconds: 180  # Increased for slower models with large context
+  temperature: 0.3  # Lower temperature for more focused, deterministic responses
+  max-tokens: 500
+
+# Vector Database Configuration for Docker
+vector-db:
+  type: chroma
+  connection-url: ${VECTOR_DB_URL:http://chromadb:8000}
+  collection-name: ${COLLECTION_NAME:java25_docs}
+  chroma:
+    tenant: default_tenant
+    database: default_database
+
+# Ingestion Configuration
+ingestion:
+  chunk-size: 1000
+  chunk-overlap: 200
+  batch-size: 100
+
+# Query Configuration
+query:
+  max-retrieved-chunks: 5
+  similarity-threshold: 0.50  # Lowered for better recall - retrieves more relevant documents
+  timeout-seconds: 90  # Increased for slower models with large context from javadocs
+  enable-cache: true
+  cache-ttl-minutes: 120
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.javarag: INFO
+    com.javarag.service: DEBUG
+    dev.langchain4j: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/java-rag-system.log
+    max-size: 10MB
+    max-history: 7
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true

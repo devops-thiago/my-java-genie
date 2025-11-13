@@ -1,0 +1,197 @@
+spring:
+  application:
+    name: java-rag-system
+
+# Model Configuration
+model:
+  # Provider type: self-hosted, openai, anthropic
+  provider: self-hosted
+  
+  # Self-hosted model settings (Ollama)
+  self-hosted:
+    base-url: http://localhost:11434
+    model-name: llama2
+    timeout-seconds: 60
+  
+  # OpenAI settings
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model-name: gpt-4
+    timeout-seconds: 30
+  
+  # Anthropic settings
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model-name: claude-3-sonnet-20240229
+    timeout-seconds: 30
+  
+  # Google Gemini settings (via Vertex AI)
+  gemini:
+    project-id: ${GOOGLE_CLOUD_PROJECT:}
+    location: us-central1
+    model-name: gemini-pro
+    api-key: ${GOOGLE_API_KEY:}
+    timeout-seconds: 30
+  
+  # Generation parameters
+  temperature: 0.7
+  max-tokens: 500
+
+# Vector Database Configuration
+vector-db:
+  # Type: chroma, pgvector, qdrant
+  type: chroma
+  connection-url: http://localhost:8000
+  collection-name: java25_docs
+  
+  # ChromaDB specific settings
+  chroma:
+    tenant: default_tenant
+    database: default_database
+  
+  # pgvector specific settings
+  pgvector:
+    host: localhost
+    port: 5432
+    database: ragdb
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:}
+    schema: public
+    table-name: document_embeddings
+  
+  # Qdrant specific settings
+  qdrant:
+    api-key: ${QDRANT_API_KEY:}
+    use-tls: false
+
+# Document Ingestion Configuration
+ingestion:
+  chunk-size: 1000
+  chunk-overlap: 200
+  batch-size: 100
+  # Supported formats: md, html, txt
+  supported-formats:
+    - md
+    - html
+    - txt
+
+# Query Configuration
+query:
+  max-retrieved-chunks: 5
+  similarity-threshold: 0.7
+  timeout-seconds: 10
+  # Enable caching for repeated queries
+  enable-cache: false
+  cache-ttl-minutes: 60
+
+# Embedding Model Configuration
+embedding:
+  # Model type: local, openai
+  model-type: local
+  # Local model: all-minilm-l6-v2
+  local-model-name: all-minilm-l6-v2
+  # Dimensions for the embedding model
+  dimensions: 384
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.javarag: INFO
+    com.javarag.service: DEBUG
+    com.javarag.repository: DEBUG
+    com.javarag.controller: INFO
+    com.javarag.config: INFO
+    dev.langchain4j: WARN
+    org.springframework: INFO
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/java-rag-system.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# Server Configuration
+server:
+  port: 8080
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose health, info, and metrics endpoints
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    defaults:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+# Application Info for Actuator
+info:
+  app:
+    name: Java RAG System
+    description: Retrieval-Augmented Generation system for Java 25 documentation
+    version: 1.0.0-SNAPSHOT
+    encoding: @project.build.sourceEncoding@
+    java:
+      version: @java.version@
+
+# Chat Configuration
+chat:
+  session:
+    # Session timeout in seconds (default: 1800 = 30 minutes)
+    timeout-seconds: 1800
+
+# Optional: Development Mode
+rag:
+  dev-mode:
+    enabled: false
+
+# OpenTelemetry Configuration
+opentelemetry:
+  enabled: true
+  service-name: java-rag-system
+  service-version: 1.0.0-SNAPSHOT
+  environment: ${ENVIRONMENT:development}
+  
+  # Traces configuration
+  traces:
+    enabled: true
+    exporter: otlp
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+    sampling-rate: 1.0  # 100% sampling for development, adjust for production
+
+  # Metrics configuration
+  metrics:
+    enabled: true
+    exporter: otlp
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+    export-interval-millis: 60000  # 60 seconds
+
+  # Logs configuration
+  logs:
+    enabled: true
+    exporter: otlp
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+
+  # Resource attributes
+  resource:
+    attributes:
+      deployment.environment: ${ENVIRONMENT:development}
+      service.namespace: rag-system
+      service.instance.id: ${HOSTNAME:localhost}

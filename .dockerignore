@@ -1,0 +1,44 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Node
+chat-ui/node_modules/
+chat-ui/build/
+chat-ui/.env.local
+chat-ui/.env.development.local
+chat-ui/.env.test.local
+chat-ui/.env.production.local
+chat-ui/npm-debug.log*
+chat-ui/yarn-debug.log*
+chat-ui/yarn-error.log*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+README.md
+DOCKER_QUICKSTART.md
+
+# Scripts
+scripts/

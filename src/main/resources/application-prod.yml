@@ -1,0 +1,167 @@
+# Production Configuration for Java RAG System
+# This profile uses paid API models (OpenAI) and production-grade vector database
+
+spring:
+  application:
+    name: java-rag-system-prod
+
+# Model Configuration - OpenAI (Paid API)
+model:
+  provider: openai
+  
+  openai:
+    # API key should be set via environment variable: OPENAI_API_KEY
+    api-key: ${OPENAI_API_KEY}
+    model-name: gpt-4-turbo-preview
+    timeout-seconds: 30
+  
+  # Optimized for production quality responses
+  temperature: 0.7
+  max-tokens: 500
+
+# Alternative: Anthropic Configuration (uncomment to use)
+# model:
+#   provider: anthropic
+#   
+#   anthropic:
+#     api-key: ${ANTHROPIC_API_KEY}
+#     model-name: claude-3-sonnet-20240229
+#     timeout-seconds: 30
+#   
+#   temperature: 0.7
+#   max-tokens: 500
+
+# Alternative: Google Gemini Configuration (uncomment to use)
+# model:
+#   provider: gemini
+#   
+#   gemini:
+#     project-id: ${GOOGLE_CLOUD_PROJECT}
+#     location: us-central1
+#     model-name: gemini-pro
+#     api-key: ${GOOGLE_API_KEY}
+#     timeout-seconds: 30
+#   
+#   temperature: 0.7
+#   max-tokens: 500
+
+# Vector Database Configuration - Production ChromaDB or pgvector
+vector-db:
+  type: chroma
+  connection-url: ${VECTOR_DB_URL:http://chroma-db:8000}
+  collection-name: java25_docs_prod
+  
+  chroma:
+    tenant: default_tenant
+    database: default_database
+
+# Alternative: PostgreSQL with pgvector (uncomment to use)
+# vector-db:
+#   type: pgvector
+#   
+#   pgvector:
+#     host: ${POSTGRES_HOST:postgres}
+#     port: ${POSTGRES_PORT:5432}
+#     database: ${POSTGRES_DB:ragdb}
+#     username: ${POSTGRES_USER}
+#     password: ${POSTGRES_PASSWORD}
+#     schema: public
+#     table-name: document_embeddings
+
+# Document Ingestion Configuration
+ingestion:
+  # Optimized chunk size for production
+  chunk-size: 1000
+  chunk-overlap: 200
+  batch-size: 100
+  supported-formats:
+    - md
+    - html
+    - txt
+
+# Query Configuration - Optimized for Cost and Performance
+query:
+  # Limit chunks to reduce token usage
+  max-retrieved-chunks: 5
+  # Higher threshold to ensure quality
+  similarity-threshold: 0.75
+  timeout-seconds: 10
+  enable-cache: true
+  cache-ttl-minutes: 120
+
+# Embedding Model Configuration
+# For production, consider using OpenAI embeddings for better quality
+embedding:
+  model-type: local
+  local-model-name: all-minilm-l6-v2
+  dimensions: 384
+
+# Alternative: OpenAI Embeddings (uncomment to use)
+# embedding:
+#   model-type: openai
+#   openai-model-name: text-embedding-3-small
+#   dimensions: 1536
+
+# Logging Configuration - Production Level
+logging:
+  level:
+    root: WARN
+    com.javarag: INFO
+    com.javarag.service: INFO
+    com.javarag.repository: INFO
+    com.javarag.controller: INFO
+    com.javarag.config: INFO
+    dev.langchain4j: WARN
+    org.springframework: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/java-rag-system-prod.log
+    max-size: 50MB
+    max-history: 90
+    total-size-cap: 5GB
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        # Limited endpoints for security
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  health:
+    defaults:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Application Info
+info:
+  app:
+    name: Java RAG System (Production)
+    description: RAG system for Java 25 documentation - Production Environment
+    version: 1.0.0
+    environment: production
+
+# Production Mode
+rag:
+  dev-mode:
+    enabled: false

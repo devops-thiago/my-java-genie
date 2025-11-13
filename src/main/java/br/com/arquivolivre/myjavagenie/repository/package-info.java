@@ -1,0 +1,12 @@
+/**
+ * Repository layer for data access abstractions.
+ * Contains interfaces and implementations for vector database operations.
+ *
+ * <p>Key components:</p>
+ * <ul>
+ *   <li>{@link br.com.arquivolivre.myjavagenie.repository.VectorRepository} - Interface for vector database operations</li>
+ *   <li>{@link br.com.arquivolivre.myjavagenie.repository.ChromaVectorRepository} - ChromaDB implementation</li>
+ *   <li>{@link br.com.arquivolivre.myjavagenie.repository.VectorRepositoryFactory} - Factory for creating repository instances</li>
+ * </ul>
+ */
+package br.com.arquivolivre.myjavagenie.repository;
