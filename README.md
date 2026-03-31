@@ -1,8 +1,19 @@
+<div align="center">
+  <img src="logo.png" alt="Java Genie Logo" width="300"/>
+</div>
+
 # My Java Genie
 
 > A production-ready Retrieval-Augmented Generation (RAG) system for querying Java 25 documentation using natural language.
 
 **Ask questions about Java 25 in plain English and get accurate answers from official documentation.**
+
+## 🏆 CI/CD & Code Quality
+
+![Build Status](https://github.com/thiagotigaz/my-java-genie/workflows/CI%2FCD%20Pipeline/badge.svg)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=my-java-genie&metric=alert_status)](https://sonarcloud.io/dashboard?id=my-java-genie)
+[![codecov](https://codecov.io/gh/thiagotigaz/my-java-genie/branch/main/graph/badge.svg)](https://codecov.io/gh/thiagotigaz/my-java-genie)
+[![Code Quality](https://img.shields.io/badge/code%20quality-automated-brightgreen)](https://github.com/thiagotigaz/my-java-genie/actions)
 
 ## ✨ Features
 
