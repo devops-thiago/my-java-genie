@@ -57,11 +57,11 @@ embedding:
 logging:
   level:
     root: INFO
-    com.javarag: DEBUG
-    com.javarag.service: DEBUG
-    com.javarag.repository: DEBUG
-    com.javarag.controller: DEBUG
-    com.javarag.config: DEBUG
+    br.com.arquivolivre.myjavagenie: DEBUG
+    br.com.arquivolivre.myjavagenie.service: DEBUG
+    br.com.arquivolivre.myjavagenie.repository: DEBUG
+    br.com.arquivolivre.myjavagenie.controller: DEBUG
+    br.com.arquivolivre.myjavagenie.config: DEBUG
     dev.langchain4j: INFO
     org.springframework: INFO
     org.springframework.web: DEBUG

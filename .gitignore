@@ -48,3 +48,6 @@ chat-ui/.env.production.local
 chat-ui/npm-debug.log*
 chat-ui/yarn-debug.log*
 chat-ui/yarn-error.log*
+
+# Workshop - fetched Java 25 docs (downloaded inside the VM, not committed)
+docs/java25/

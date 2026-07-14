@@ -97,11 +97,11 @@ embedding:
 logging:
   level:
     root: INFO
-    com.javarag: INFO
-    com.javarag.service: DEBUG
-    com.javarag.repository: DEBUG
-    com.javarag.controller: INFO
-    com.javarag.config: INFO
+    br.com.arquivolivre.myjavagenie: INFO
+    br.com.arquivolivre.myjavagenie.service: DEBUG
+    br.com.arquivolivre.myjavagenie.repository: DEBUG
+    br.com.arquivolivre.myjavagenie.controller: INFO
+    br.com.arquivolivre.myjavagenie.config: INFO
     dev.langchain4j: WARN
     org.springframework: INFO
     org.springframework.web: INFO

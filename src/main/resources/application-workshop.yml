@@ -1,0 +1,98 @@
+# Workshop profile for the TDC VM - My Java Genie
+# Uses the OpenAI API (gpt-4o-mini) instead of Ollama and disables the
+# observability stack (no Alloy/Tempo/Mimir/Loki) so it fits in 6GB RAM.
+# Each participant must supply their own OPENAI_API_KEY (see .env / .env.example).
+#
+# Use standalone for local dev:   mvn spring-boot:run -Dspring-boot.run.profiles=workshop
+# Use with Docker:                SPRING_PROFILES_ACTIVE=docker,workshop (see docker-compose.workshop.yml)
+
+spring:
+  application:
+    name: java-rag-system-workshop
+
+# Model Configuration - OpenAI (paid API, lightweight for the VM)
+model:
+  provider: openai
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model-name: gpt-4o-mini
+    timeout-seconds: 30
+  temperature: 0.3
+  max-tokens: 500
+
+# Vector Database Configuration - ChromaDB (started via docker-compose.workshop.yml)
+# VECTOR_DB_URL defaults to localhost for local dev and is overridden to chromadb:8000 in Docker.
+vector-db:
+  type: chroma
+  connection-url: ${VECTOR_DB_URL:http://localhost:8000}
+  collection-name: ${COLLECTION_NAME:java25_docs_workshop}
+  chroma:
+    tenant: default_tenant
+    database: default_database
+
+# Query Configuration - tuned for an OpenAI web API
+query:
+  max-retrieved-chunks: 5
+  similarity-threshold: 0.50
+  timeout-seconds: 60
+  enable-cache: true
+  cache-ttl-minutes: 120
+
+# OpenTelemetry - disabled (no observability stack in the workshop VM).
+# OpenTelemetryConfig, OpenTelemetryHealthIndicator and TraceContextMdcFilter
+# are all @ConditionalOnProperty(opentelemetry.enabled=true), so the app starts
+# cleanly without any collector and without export errors.
+opentelemetry:
+  enabled: false
+
+# Logging Configuration - correct application package
+logging:
+  level:
+    root: INFO
+    br.com.arquivolivre.myjavagenie: INFO
+    br.com.arquivolivre.myjavagenie.service: DEBUG
+    br.com.arquivolivre.myjavagenie.controller: INFO
+    br.com.arquivolivre.myjavagenie.config: INFO
+    dev.langchain4j: WARN
+    org.springframework: INFO
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/java-rag-system-workshop.log
+    max-size: 10MB
+    max-history: 7
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Application Info
+info:
+  app:
+    name: My Java Genie (Workshop)
+    description: RAG system for Java 25 documentation - Workshop VM (OpenAI)
+    version: 1.0.0-SNAPSHOT
+    environment: workshop
+
+# Development mode features enabled for the workshop
+rag:
+  dev-mode:
+    enabled: true

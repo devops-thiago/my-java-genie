@@ -1,0 +1,74 @@
+# Slim Docker Compose for the TDC workshop VM - My Java Genie
+# Only the vector database (ChromaDB) + the application. No Ollama and no
+# observability stack (Alloy/Tempo/Mimir/Loki/Grafana) to fit within 6GB RAM.
+# The app uses the OpenAI API (gpt-4o-mini) via the "workshop" Spring profile.
+#
+# Usage (from the repo root, after creating .env with your OPENAI_API_KEY):
+#   docker compose -f docker-compose.workshop.yml up -d
+#   docker compose -f docker-compose.workshop.yml logs -f java-rag-app
+#   docker compose -f docker-compose.workshop.yml down
+#
+# Build the image (no real key needed at build time):
+#   OPENAI_API_KEY=build-placeholder docker compose -f docker-compose.workshop.yml build
+
+services:
+  # ChromaDB Vector Database
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: java-rag-workshop-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/8000' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Java RAG Application (OpenAI provider, observability disabled)
+  java-rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: java-rag-workshop-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker,workshop
+      - VECTOR_DB_URL=http://chromadb:8000
+      - COLLECTION_NAME=java25_docs_workshop
+      - ENVIRONMENT=workshop
+      # OPENAI_API_KEY is read from .env (see .env.example). Compose fails with a
+      # clear message if it is missing, so participants set their own key before starting.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env (see .env.example)}
+    volumes:
+      - ./docs:/app/docs:ro
+      - app-logs:/app/logs
+    networks:
+      - rag-network
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  chroma-data:
+    driver: local
+  app-logs:
+    driver: local

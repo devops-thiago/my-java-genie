@@ -235,7 +235,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <configLocation>.github/google_checks.xml</configLocation>
+                    <configLocation>google_checks.xml</configLocation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>false</failsOnError>
@@ -334,4 +334,25 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Workshop profile: auto-activated inside the TDC VM (WORKSHOP_VM=true is set
+             in /etc/environment by the VM provisioning). It skips the quality gates
+             (Spotless/Checkstyle/SpotBugs) so participants can run Maven directly
+             (e.g. `mvn spring-boot:run`) without format violations blocking the build.
+             It does NOT affect CI, which does not set WORKSHOP_VM. -->
+        <profile>
+            <id>workshop</id>
+            <activation>
+                <property>
+                    <name>env.WORKSHOP_VM</name>
+                </property>
+            </activation>
+            <properties>
+                <spotless.check.skip>true</spotless.check.skip>
+                <checkstyle.skip>true</checkstyle.skip>
+                <spotbugs.skip>true</spotbugs.skip>
+            </properties>
+        </profile>
+    </profiles>
 </project>
