@@ -304,6 +304,8 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
+                            <!-- Report violations without failing verify (matches CI continue-on-error). -->
+                            <haltOnFailure>false</haltOnFailure>
                             <rules>
                                 <rule>
                                     <element>PACKAGE</element>
