@@ -4,13 +4,9 @@ import br.com.arquivolivre.myjavagenie.exception.LlmException;
 import br.com.arquivolivre.myjavagenie.model.ChatMessage;
 import br.com.arquivolivre.myjavagenie.model.ChatResponse;
 import br.com.arquivolivre.myjavagenie.model.ChatSession;
+import br.com.arquivolivre.myjavagenie.model.QueryResponse;
 import br.com.arquivolivre.myjavagenie.model.QueryStatus;
 import br.com.arquivolivre.myjavagenie.websocket.ChatWebSocketHandler;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatModel;
-import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,17 +16,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChatService {
   private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
-  private static final String SYSTEM_PROMPT =
-      "You are a helpful assistant. Answer clearly and concisely.";
 
-  private final ChatModel chatModel;
+  private final QueryService queryService;
   private final SessionManager sessionManager;
 
   @Autowired(required = false)
   private ChatWebSocketHandler webSocketHandler;
 
-  public ChatService(ChatModel chatModel, SessionManager sessionManager) {
-    this.chatModel = chatModel;
+  public ChatService(QueryService queryService, SessionManager sessionManager) {
+    this.queryService = queryService;
     this.sessionManager = sessionManager;
   }
 
@@ -41,27 +35,49 @@ public class ChatService {
   public ChatResponse processMessage(String sessionId, String message, String webSocketSessionId) {
     long started = System.currentTimeMillis();
     ChatSession session = sessionManager.getOrCreateSession(sessionId);
-
     session.addMessage(new ChatMessage(ChatMessage.MessageRole.USER, message));
 
-    sendStatusUpdate(
-        webSocketSessionId,
-        session.getSessionId(),
-        QueryStatus.ProcessingStage.GENERATING,
-        "Generating response");
-
     try {
-      String answer = generateReply(session);
-      session.addMessage(new ChatMessage(ChatMessage.MessageRole.ASSISTANT, answer));
+      sendStatusUpdate(
+          webSocketSessionId,
+          session.getSessionId(),
+          QueryStatus.ProcessingStage.EMBEDDING,
+          "Preparing search query");
+      sendStatusUpdate(
+          webSocketSessionId,
+          session.getSessionId(),
+          QueryStatus.ProcessingStage.SEARCHING,
+          "Searching documents");
+      sendStatusUpdate(
+          webSocketSessionId,
+          session.getSessionId(),
+          QueryStatus.ProcessingStage.GENERATING,
+          "Generating response");
+
+      QueryResponse queryResponse = queryService.query(message);
+      session.addMessage(
+          new ChatMessage(
+              ChatMessage.MessageRole.ASSISTANT,
+              queryResponse.getAnswer(),
+              queryResponse.getSources()));
+
       long elapsed = System.currentTimeMillis() - started;
-      ChatResponse response = new ChatResponse(session.getSessionId(), answer, elapsed);
+      ChatResponse response =
+          new ChatResponse(
+              session.getSessionId(),
+              queryResponse.getAnswer(),
+              queryResponse.getSources(),
+              null,
+              elapsed);
 
       if (webSocketHandler != null) {
-        QueryStatus completion = new QueryStatus(session.getSessionId(), response);
-        sendStatus(webSocketSessionId, session.getSessionId(), completion);
+        sendStatus(
+            webSocketSessionId,
+            session.getSessionId(),
+            new QueryStatus(session.getSessionId(), response));
       }
 
-      logger.info("Chat reply ready for session {} in {}ms", session.getSessionId(), elapsed);
+      logger.info("Chat RAG reply ready for session {} in {}ms", session.getSessionId(), elapsed);
       return response;
     } catch (Exception e) {
       sendStatusUpdate(
@@ -72,7 +88,7 @@ public class ChatService {
       if (e instanceof LlmException llmException) {
         throw llmException;
       }
-      throw new LlmException("Failed to get response from LLM: " + e.getMessage(), e);
+      throw new LlmException("Failed to process chat query: " + e.getMessage(), e);
     }
   }
 
@@ -97,25 +113,6 @@ public class ChatService {
     return sessionManager.getSession(sessionId) != null;
   }
 
-  private String generateReply(ChatSession session) {
-    List<dev.langchain4j.data.message.ChatMessage> messages = new ArrayList<>();
-    messages.add(SystemMessage.from(SYSTEM_PROMPT));
-
-    for (ChatMessage message : session.getMessages()) {
-      if (message.role() == ChatMessage.MessageRole.USER) {
-        messages.add(UserMessage.from(message.content()));
-      } else {
-        messages.add(AiMessage.from(message.content()));
-      }
-    }
-
-    dev.langchain4j.model.chat.response.ChatResponse response = chatModel.chat(messages);
-    if (response == null || response.aiMessage() == null || response.aiMessage().text() == null) {
-      throw new LlmException("LLM returned an empty response");
-    }
-    return response.aiMessage().text();
-  }
-
   private void sendStatusUpdate(
       String webSocketSessionId,
       String chatSessionId,
@@ -128,6 +125,9 @@ public class ChatService {
   }
 
   private void sendStatus(String webSocketSessionId, String chatSessionId, QueryStatus status) {
+    if (webSocketHandler == null) {
+      return;
+    }
     if (webSocketSessionId != null && !webSocketSessionId.isBlank()) {
       webSocketHandler.sendStatusUpdate(webSocketSessionId, status);
     }

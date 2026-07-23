@@ -48,22 +48,22 @@ curl -X POST http://localhost:8080/api/chat/query \
   -d '{"sessionId":"demo","message":"Olá!"}'
 ```
 
-## Ingest sample docs
-
-With the app running:
+## Ingest and query
 
 ```bash
+docker compose up -d chromadb
+
 curl -X POST "http://localhost:8080/api/ingest?path=docs/specs/primitive-types-in-patterns-instanceof-switch-jls.html"
+
+curl -X POST http://localhost:8080/api/query \
+  -H "Content-Type: application/json" \
+  -d '{"question":"O que mudou com patterns e primitive types no switch?"}'
 ```
+
+Chat UI uses the same RAG path via `/api/chat/query`.
 
 ## Tests
 
 ```bash
 mvn clean test
-```
-
-## ChromaDB
-
-```bash
-docker compose up -d chromadb
 ```

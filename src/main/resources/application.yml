@@ -22,6 +22,10 @@ vector-db:
   connection-url: ${VECTOR_DB_URL:http://localhost:8000}
   collection-name: workshop_docs
 
+query:
+  max-retrieved-chunks: 5
+  similarity-threshold: 0.2
+
 chat:
   session:
     timeout-seconds: 1800
