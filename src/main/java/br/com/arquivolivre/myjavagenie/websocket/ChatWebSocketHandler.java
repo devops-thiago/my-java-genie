@@ -2,6 +2,10 @@ package br.com.arquivolivre.myjavagenie.websocket;
 
 import br.com.arquivolivre.myjavagenie.model.QueryStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -9,96 +13,76 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-/**
- * WebSocket handler for real-time chat updates.
- * Manages WebSocket connections and sends query status updates to clients.
- */
 @Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
-    private static final Logger logger = LoggerFactory.getLogger(ChatWebSocketHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(ChatWebSocketHandler.class);
 
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+  private final Map<String, WebSocketSession> sessionsByWsId = new ConcurrentHashMap<>();
+  private final Map<String, WebSocketSession> sessionsByChatId = new ConcurrentHashMap<>();
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String sessionId = session.getId();
-        sessions.put(sessionId, session);
-        logger.info("WebSocket connection established: {}", sessionId);
+  @Override
+  public void afterConnectionEstablished(WebSocketSession session) {
+    sessionsByWsId.put(session.getId(), session);
+    String chatSessionId = extractChatSessionId(session);
+    if (chatSessionId != null && !chatSessionId.isBlank()) {
+      sessionsByChatId.put(chatSessionId, session);
+      logger.info("WebSocket connected wsId={} chatSessionId={}", session.getId(), chatSessionId);
+    } else {
+      logger.info("WebSocket connected wsId={}", session.getId());
     }
+  }
 
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        String sessionId = session.getId();
-        sessions.remove(sessionId);
-        logger.info("WebSocket connection closed: {} with status: {}", sessionId, status);
+  @Override
+  public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    sessionsByWsId.remove(session.getId());
+    sessionsByChatId.entrySet().removeIf(entry -> entry.getValue().getId().equals(session.getId()));
+    logger.info("WebSocket closed: {} status={}", session.getId(), status);
+  }
+
+  @Override
+  protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+    logger.debug("Received WebSocket message from {}: {}", session.getId(), message.getPayload());
+  }
+
+  public void sendStatusUpdate(String webSocketSessionId, QueryStatus status) {
+    if (webSocketSessionId == null || webSocketSessionId.isBlank()) {
+      return;
     }
-
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        logger.debug("Received WebSocket message from {}: {}", session.getId(), message.getPayload());
-        // Messages from client can be handled here if needed
+    WebSocketSession session = sessionsByWsId.get(webSocketSessionId);
+    if (session == null) {
+      session = sessionsByChatId.get(webSocketSessionId);
     }
+    send(session, webSocketSessionId, status);
+  }
 
-    /**
-     * Sends a query status update to a specific WebSocket session.
-     *
-     * @param webSocketSessionId the WebSocket session ID
-     * @param status             the query status to send
-     */
-    public void sendStatusUpdate(String webSocketSessionId, QueryStatus status) {
-        WebSocketSession session = sessions.get(webSocketSessionId);
-        if (session != null && session.isOpen()) {
-            try {
-                String json = objectMapper.writeValueAsString(status);
-                session.sendMessage(new TextMessage(json));
-                logger.debug("Sent status update to session {}: {}", webSocketSessionId, status.getStage());
-            } catch (IOException e) {
-                logger.error("Error sending status update to session {}", webSocketSessionId, e);
-            }
-        } else {
-            logger.warn("WebSocket session not found or closed: {}", webSocketSessionId);
-        }
+  public void sendStatusUpdateForChatSession(String chatSessionId, QueryStatus status) {
+    if (chatSessionId == null || chatSessionId.isBlank()) {
+      return;
     }
+    send(sessionsByChatId.get(chatSessionId), chatSessionId, status);
+  }
 
-    /**
-     * Broadcasts a query status update to all connected sessions.
-     *
-     * @param status the query status to broadcast
-     */
-    public void broadcastStatusUpdate(QueryStatus status) {
-        String json;
-        try {
-            json = objectMapper.writeValueAsString(status);
-        } catch (IOException e) {
-            logger.error("Error serializing status update", e);
-            return;
-        }
-
-        sessions.values().forEach(session -> {
-            if (session.isOpen()) {
-                try {
-                    session.sendMessage(new TextMessage(json));
-                } catch (IOException e) {
-                    logger.error("Error broadcasting to session {}", session.getId(), e);
-                }
-            }
-        });
-
-        logger.debug("Broadcasted status update to {} sessions: {}", sessions.size(), status.getStage());
+  private void send(WebSocketSession session, String key, QueryStatus status) {
+    if (session == null || !session.isOpen()) {
+      logger.debug("No open WebSocket session for key {}", key);
+      return;
     }
-
-    /**
-     * Gets the number of active WebSocket connections.
-     *
-     * @return the connection count
-     */
-    public int getConnectionCount() {
-        return sessions.size();
+    try {
+      session.sendMessage(new TextMessage(objectMapper.writeValueAsString(status)));
+      logger.debug("Sent status {} to {}", status.getStatus(), key);
+    } catch (IOException e) {
+      logger.error("Error sending status update to {}", key, e);
     }
+  }
+
+  private String extractChatSessionId(WebSocketSession session) {
+    URI uri = session.getUri();
+    if (uri == null) {
+      return null;
+    }
+    return UriComponentsBuilder.fromUri(uri).build().getQueryParams().getFirst("sessionId");
+  }
 }

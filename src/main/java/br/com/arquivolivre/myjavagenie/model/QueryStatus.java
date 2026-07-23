@@ -1,100 +1,82 @@
 package br.com.arquivolivre.myjavagenie.model;
 
-/**
- * Represents the status of a query processing operation.
- */
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class QueryStatus {
-    private String sessionId;
-    private ProcessingStage stage;
-    private String message;
-    private boolean completed;
-    private ChatResponse response;
+  private String sessionId;
+  private ProcessingStage stage;
+  private String message;
+  private boolean completed;
+  private ChatResponse response;
 
-    public QueryStatus() {
-    }
+  public QueryStatus() {}
 
-    public QueryStatus(String sessionId, ProcessingStage stage, String message) {
-        this.sessionId = sessionId;
-        this.stage = stage;
-        this.message = message;
-        this.completed = false;
-    }
+  public QueryStatus(String sessionId, ProcessingStage stage, String message) {
+    this.sessionId = sessionId;
+    this.stage = stage;
+    this.message = message;
+    this.completed = stage == ProcessingStage.COMPLETE || stage == ProcessingStage.ERROR;
+  }
 
-    public QueryStatus(String sessionId, ChatResponse response) {
-        this.sessionId = sessionId;
-        this.stage = ProcessingStage.COMPLETED;
-        this.message = "Query processing completed";
-        this.completed = true;
-        this.response = response;
-    }
+  public QueryStatus(String sessionId, ChatResponse response) {
+    this.sessionId = sessionId;
+    this.stage = ProcessingStage.COMPLETE;
+    this.message = "Query processing completed";
+    this.completed = true;
+    this.response = response;
+  }
 
-    public String getSessionId() {
-        return sessionId;
-    }
+  public String getSessionId() {
+    return sessionId;
+  }
 
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId;
-    }
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
+  }
 
-    public ProcessingStage getStage() {
-        return stage;
-    }
+  public ProcessingStage getStage() {
+    return stage;
+  }
 
-    public void setStage(ProcessingStage stage) {
-        this.stage = stage;
-    }
+  public void setStage(ProcessingStage stage) {
+    this.stage = stage;
+  }
 
-    public String getMessage() {
-        return message;
-    }
+  /** Field name expected by the chat UI. */
+  @JsonProperty("status")
+  public String getStatus() {
+    return stage == null ? null : stage.name();
+  }
 
-    public void setMessage(String message) {
-        this.message = message;
-    }
+  public String getMessage() {
+    return message;
+  }
 
-    public boolean isCompleted() {
-        return completed;
-    }
+  public void setMessage(String message) {
+    this.message = message;
+  }
 
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
-    }
+  public boolean isCompleted() {
+    return completed;
+  }
 
-    public ChatResponse getResponse() {
-        return response;
-    }
+  public void setCompleted(boolean completed) {
+    this.completed = completed;
+  }
 
-    public void setResponse(ChatResponse response) {
-        this.response = response;
-    }
+  public ChatResponse getResponse() {
+    return response;
+  }
 
-    @Override
-    public String toString() {
-        return "QueryStatus{" +
-                "sessionId='" + sessionId + '\'' +
-                ", stage=" + stage +
-                ", message='" + message + '\'' +
-                ", completed=" + completed +
-                '}';
-    }
+  public void setResponse(ChatResponse response) {
+    this.response = response;
+  }
 
-    /**
-     * Enum representing the stages of query processing.
-     */
-    public enum ProcessingStage {
-        EMBEDDING("Generating query embedding"),
-        SEARCHING("Searching for relevant documents"),
-        GENERATING("Generating response"),
-        COMPLETED("Processing completed");
-
-        private final String description;
-
-        ProcessingStage(String description) {
-            this.description = description;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-    }
+  public enum ProcessingStage {
+    EMBEDDING,
+    SEARCHING,
+    GENERATING,
+    COMPLETE,
+    ERROR
+  }
 }

@@ -1,162 +1,137 @@
 package br.com.arquivolivre.myjavagenie.service;
 
-import br.com.arquivolivre.myjavagenie.model.*;
+import br.com.arquivolivre.myjavagenie.exception.LlmException;
+import br.com.arquivolivre.myjavagenie.model.ChatMessage;
+import br.com.arquivolivre.myjavagenie.model.ChatResponse;
+import br.com.arquivolivre.myjavagenie.model.ChatSession;
+import br.com.arquivolivre.myjavagenie.model.QueryStatus;
 import br.com.arquivolivre.myjavagenie.websocket.ChatWebSocketHandler;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
-/**
- * Service for handling chat interactions.
- * Manages conversation flow and integrates with QueryService.
- */
 @Service
 public class ChatService {
-    private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
+  private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
+  private static final String SYSTEM_PROMPT =
+      "You are a helpful assistant. Answer clearly and concisely.";
 
-    private final QueryService queryService;
-    private final SessionManager sessionManager;
+  private final ChatLanguageModel chatModel;
+  private final SessionManager sessionManager;
 
-    @Autowired(required = false)
-    private ChatWebSocketHandler webSocketHandler;
+  @Autowired(required = false)
+  private ChatWebSocketHandler webSocketHandler;
 
-    public ChatService(QueryService queryService, SessionManager sessionManager) {
-        this.queryService = queryService;
-        this.sessionManager = sessionManager;
+  public ChatService(ChatLanguageModel chatModel, SessionManager sessionManager) {
+    this.chatModel = chatModel;
+    this.sessionManager = sessionManager;
+  }
+
+  public ChatResponse processMessage(String sessionId, String message) {
+    return processMessage(sessionId, message, null);
+  }
+
+  public ChatResponse processMessage(String sessionId, String message, String webSocketSessionId) {
+    long started = System.currentTimeMillis();
+    ChatSession session = sessionManager.getOrCreateSession(sessionId);
+
+    session.addMessage(new ChatMessage(ChatMessage.MessageRole.USER, message));
+
+    sendStatusUpdate(
+        webSocketSessionId,
+        session.getSessionId(),
+        QueryStatus.ProcessingStage.GENERATING,
+        "Generating response");
+
+    try {
+      String answer = generateReply(session);
+      session.addMessage(new ChatMessage(ChatMessage.MessageRole.ASSISTANT, answer));
+      long elapsed = System.currentTimeMillis() - started;
+      ChatResponse response = new ChatResponse(session.getSessionId(), answer, elapsed);
+
+      if (webSocketHandler != null) {
+        QueryStatus completion = new QueryStatus(session.getSessionId(), response);
+        sendStatus(webSocketSessionId, session.getSessionId(), completion);
+      }
+
+      logger.info("Chat reply ready for session {} in {}ms", session.getSessionId(), elapsed);
+      return response;
+    } catch (Exception e) {
+      sendStatusUpdate(
+          webSocketSessionId,
+          session.getSessionId(),
+          QueryStatus.ProcessingStage.ERROR,
+          e.getMessage());
+      if (e instanceof LlmException llmException) {
+        throw llmException;
+      }
+      throw new LlmException("Failed to get response from LLM: " + e.getMessage(), e);
+    }
+  }
+
+  public List<ChatMessage> getHistory(String sessionId) {
+    ChatSession session = sessionManager.getSession(sessionId);
+    if (session == null) {
+      return List.of();
+    }
+    return session.getMessages();
+  }
+
+  public boolean clearHistory(String sessionId) {
+    ChatSession session = sessionManager.getSession(sessionId);
+    if (session == null) {
+      return false;
+    }
+    session.clearMessages();
+    return true;
+  }
+
+  public boolean sessionExists(String sessionId) {
+    return sessionManager.getSession(sessionId) != null;
+  }
+
+  private String generateReply(ChatSession session) {
+    List<dev.langchain4j.data.message.ChatMessage> messages = new ArrayList<>();
+    messages.add(SystemMessage.from(SYSTEM_PROMPT));
+
+    for (ChatMessage message : session.getMessages()) {
+      if (message.role() == ChatMessage.MessageRole.USER) {
+        messages.add(UserMessage.from(message.content()));
+      } else {
+        messages.add(AiMessage.from(message.content()));
+      }
     }
 
-    /**
-     * Processes a user message and generates a response.
-     *
-     * @param sessionId the session ID (null to create new session)
-     * @param message   the user's message
-     * @return the query response with session information
-     */
-    public QueryResponse processMessage(String sessionId, String message) {
-        return processMessage(sessionId, message, null);
+    Response<AiMessage> response = chatModel.generate(messages);
+    if (response == null || response.content() == null || response.content().text() == null) {
+      throw new LlmException("LLM returned an empty response");
     }
+    return response.content().text();
+  }
 
-    /**
-     * Processes a user message and generates a response with WebSocket status updates.
-     *
-     * @param sessionId          the session ID (null to create new session)
-     * @param message            the user's message
-     * @param webSocketSessionId the WebSocket session ID for status updates (optional)
-     * @return the query response with session information
-     */
-    public QueryResponse processMessage(String sessionId, String message, String webSocketSessionId) {
-        logger.info("Processing chat message for session: {}", sessionId);
-
-        // Get or create session
-        ChatSession session = sessionManager.getOrCreateSession(sessionId);
-
-        // Add user message to session
-        ChatMessage userMessage = new ChatMessage(ChatMessage.MessageRole.USER, message);
-        session.addMessage(userMessage);
-        logger.debug("Added user message to session {}: {}", session.getSessionId(), message);
-
-        // Send embedding status
-        sendStatusUpdate(webSocketSessionId, session.getSessionId(),
-                QueryStatus.ProcessingStage.EMBEDDING, "Generating query embedding");
-
-        // Send searching status
-        sendStatusUpdate(webSocketSessionId, session.getSessionId(),
-                QueryStatus.ProcessingStage.SEARCHING, "Searching for relevant documents");
-
-        // Send generating status
-        sendStatusUpdate(webSocketSessionId, session.getSessionId(),
-                QueryStatus.ProcessingStage.GENERATING, "Generating response");
-
-        // Process query
-        QueryResponse response = queryService.processQuery(message);
-
-        // Add assistant response to session
-        ChatMessage assistantMessage = new ChatMessage(
-                ChatMessage.MessageRole.ASSISTANT,
-                response.getAnswer(),
-                response.getSources()
-        );
-        session.addMessage(assistantMessage);
-        logger.debug("Added assistant response to session {}", session.getSessionId());
-
-        // Update response with session ID
-        QueryResponse finalResponse = new QueryResponse(
-                response.getAnswer(),
-                response.getSources(),
-                response.getTokenUsage(),
-                response.getResponseTimeMs(),
-                session.getSessionId()
-        );
-
-        // Send completion status
-        if (webSocketSessionId != null && webSocketHandler != null) {
-            ChatResponse chatResponse = ChatResponse.fromQueryResponse(finalResponse);
-            QueryStatus completionStatus = new QueryStatus(session.getSessionId(), chatResponse);
-            webSocketHandler.sendStatusUpdate(webSocketSessionId, completionStatus);
-        }
-
-        return finalResponse;
+  private void sendStatusUpdate(
+      String webSocketSessionId,
+      String chatSessionId,
+      QueryStatus.ProcessingStage stage,
+      String message) {
+    if (webSocketHandler == null) {
+      return;
     }
+    sendStatus(webSocketSessionId, chatSessionId, new QueryStatus(chatSessionId, stage, message));
+  }
 
-    /**
-     * Sends a status update via WebSocket if available.
-     */
-    private void sendStatusUpdate(String webSocketSessionId, String chatSessionId,
-                                  QueryStatus.ProcessingStage stage, String message) {
-        if (webSocketSessionId != null && webSocketHandler != null) {
-            QueryStatus status = new QueryStatus(chatSessionId, stage, message);
-            webSocketHandler.sendStatusUpdate(webSocketSessionId, status);
-        }
+  private void sendStatus(String webSocketSessionId, String chatSessionId, QueryStatus status) {
+    if (webSocketSessionId != null && !webSocketSessionId.isBlank()) {
+      webSocketHandler.sendStatusUpdate(webSocketSessionId, status);
     }
-
-    /**
-     * Retrieves the conversation history for a session.
-     *
-     * @param sessionId the session ID
-     * @return the list of messages, or empty list if session not found
-     */
-    public List<ChatMessage> getHistory(String sessionId) {
-        logger.debug("Retrieving history for session: {}", sessionId);
-
-        ChatSession session = sessionManager.getSession(sessionId);
-        if (session == null) {
-            logger.warn("Session not found: {}", sessionId);
-            return List.of();
-        }
-
-        return session.getMessages();
-    }
-
-    /**
-     * Clears the conversation history for a session.
-     *
-     * @param sessionId the session ID
-     * @return true if session was found and cleared, false otherwise
-     */
-    public boolean clearHistory(String sessionId) {
-        logger.info("Clearing history for session: {}", sessionId);
-
-        ChatSession session = sessionManager.getSession(sessionId);
-        if (session == null) {
-            logger.warn("Session not found: {}", sessionId);
-            return false;
-        }
-
-        session.clearMessages();
-        logger.info("Cleared history for session: {}", sessionId);
-        return true;
-    }
-
-    /**
-     * Checks if a session exists.
-     *
-     * @param sessionId the session ID
-     * @return true if session exists, false otherwise
-     */
-    public boolean sessionExists(String sessionId) {
-        return sessionManager.getSession(sessionId) != null;
-    }
+    webSocketHandler.sendStatusUpdateForChatSession(chatSessionId, status);
+  }
 }

@@ -30,7 +30,12 @@ Thumbs.db
 
 # Application
 application-local.yml
+.env
 *.env
+!.env.example
+
+# JDK docs ship on the lab VM — do not commit
+docs/
 
 # React Build Output
 src/main/resources/static/
