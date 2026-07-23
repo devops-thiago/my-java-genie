@@ -11,6 +11,9 @@ permissions:
   contents: read
   actions: write
 
+env:
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2"
+
 jobs:
   build-and-test:
     name: Build & Test
@@ -28,14 +31,14 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Cache Maven packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore Maven cache
+        id: maven-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-
-          save-always: true
 
       - name: Build and test
         run: mvn -B -ntp test
@@ -46,6 +49,13 @@ jobs:
         with:
           name: test-results
           path: target/surefire-reports/
+
+      - name: Save Maven cache
+        if: always() && steps.maven-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.maven-cache.outputs.cache-primary-key }}
 
   code-quality:
     name: Code Quality Checks
@@ -62,14 +72,14 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Cache Maven packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore Maven cache
+        id: maven-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-
-          save-always: true
 
       - name: Check code formatting (Spotless)
         run: mvn -B -ntp spotless:check
@@ -96,6 +106,13 @@ jobs:
           name: checkstyle-results
           path: target/checkstyle-result.xml
 
+      - name: Save Maven cache
+        if: always() && steps.maven-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.maven-cache.outputs.cache-primary-key }}
+
   code-coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
@@ -113,14 +130,14 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Cache Maven packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore Maven cache
+        id: maven-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-
-          save-always: true
 
       - name: Generate coverage report
         run: mvn -B -ntp clean test jacoco:report
@@ -144,6 +161,13 @@ jobs:
         run: mvn -B -ntp jacoco:check
         continue-on-error: true
 
+      - name: Save Maven cache
+        if: always() && steps.maven-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.maven-cache.outputs.cache-primary-key }}
+
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
@@ -161,17 +185,17 @@ jobs:
           java-version: "21"
           distribution: "temurin"
 
-      - name: Cache Maven packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - name: Restore Maven cache
+        id: maven-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-
-          save-always: true
 
       - name: Cache SonarCloud packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -187,3 +211,10 @@ jobs:
             -Dsonar.organization=devops-thiago \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+      - name: Save Maven cache
+        if: always() && steps.maven-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.maven-cache.outputs.cache-primary-key }}
