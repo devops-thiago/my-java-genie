@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,11 +182,11 @@ public class IngestionService {
     int processedChunks = startIndex + batch.size();
     double progress = (processedChunks * 100.0) / totalChunks;
     logger.info(
-        "Progress for {}: {}/{} chunks ({:.1f}%)",
+        "Progress for {}: {}/{} chunks ({}%)",
         LogSanitizer.sanitize(sourceFile),
         LogSanitizer.sanitize(processedChunks),
         LogSanitizer.sanitize(totalChunks),
-        progress);
+        String.format(Locale.ROOT, "%.1f", progress));
   }
 
   /**
