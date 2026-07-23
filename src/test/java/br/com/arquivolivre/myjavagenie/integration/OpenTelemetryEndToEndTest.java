@@ -71,7 +71,7 @@ class OpenTelemetryEndToEndTest {
     registry.add("model.provider", () -> "openai");
     registry.add("model.openai.api-key", () -> "test-api-key");
     registry.add("model.openai.model-name", () -> "gpt-4");
-    registry.add("model.openai.base-url", () -> "http://localhost:8083");
+    registry.add("model.openai.base-url", () -> "http://localhost:8083/v1");
     registry.add("model.temperature", () -> "0.7");
     registry.add("model.max-tokens", () -> "500");
 
@@ -103,7 +103,7 @@ class OpenTelemetryEndToEndTest {
     wireMockServer.resetAll();
 
     stubFor(
-        post(urlPathEqualTo("/v1/chat/completions"))
+        post(urlPathEqualTo("/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
@@ -318,7 +318,7 @@ class OpenTelemetryEndToEndTest {
     // Mock an error response
     wireMockServer.resetAll();
     stubFor(
-        post(urlPathEqualTo("/v1/chat/completions"))
+        post(urlPathEqualTo("/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(500)

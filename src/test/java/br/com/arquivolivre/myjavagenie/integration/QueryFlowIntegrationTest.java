@@ -64,7 +64,7 @@ class QueryFlowIntegrationTest {
     registry.add("model.provider", () -> "openai");
     registry.add("model.openai.api-key", () -> "test-api-key");
     registry.add("model.openai.model-name", () -> "gpt-4");
-    registry.add("model.openai.base-url", () -> "http://localhost:8080");
+    registry.add("model.openai.base-url", () -> "http://localhost:8082/v1");
     registry.add("model.temperature", () -> "0.7");
     registry.add("model.max-tokens", () -> "500");
 
@@ -76,9 +76,9 @@ class QueryFlowIntegrationTest {
 
   @BeforeAll
   static void setupWireMock() {
-    wireMockServer = new WireMockServer(8080);
+    wireMockServer = new WireMockServer(8082);
     wireMockServer.start();
-    WireMock.configureFor("localhost", 8080);
+    WireMock.configureFor("localhost", 8082);
   }
 
   @AfterAll
@@ -94,7 +94,7 @@ class QueryFlowIntegrationTest {
 
     // Mock OpenAI chat completion endpoint
     stubFor(
-        post(urlPathEqualTo("/v1/chat/completions"))
+        post(urlPathEqualTo("/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
@@ -137,7 +137,7 @@ class QueryFlowIntegrationTest {
     assertThat(result).isNotNull();
     assertThat(result.getDocumentsProcessed()).isGreaterThan(0);
     assertThat(result.getChunksCreated()).isGreaterThan(0);
-    assertThat(result.getFailedDocuments()).isEqualTo(0);
+    assertThat(result.getFailedDocuments()).isEmpty();
   }
 
   /** Test Requirement 1.1: Retrieve relevant documentation chunks */

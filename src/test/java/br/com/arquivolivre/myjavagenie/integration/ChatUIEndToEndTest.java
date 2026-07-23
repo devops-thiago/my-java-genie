@@ -69,7 +69,7 @@ class ChatUIEndToEndTest {
     registry.add("model.provider", () -> "openai");
     registry.add("model.openai.api-key", () -> "test-api-key");
     registry.add("model.openai.model-name", () -> "gpt-4");
-    registry.add("model.openai.base-url", () -> "http://localhost:8082");
+    registry.add("model.openai.base-url", () -> "http://localhost:8085/v1");
     registry.add("model.temperature", () -> "0.7");
     registry.add("model.max-tokens", () -> "500");
 
@@ -82,9 +82,9 @@ class ChatUIEndToEndTest {
 
   @BeforeAll
   static void setupWireMock() {
-    wireMockServer = new WireMockServer(8082);
+    wireMockServer = new WireMockServer(8085);
     wireMockServer.start();
-    WireMock.configureFor("localhost", 8082);
+    WireMock.configureFor("localhost", 8085);
   }
 
   @AfterAll
@@ -98,9 +98,8 @@ class ChatUIEndToEndTest {
   void setupMocks() {
     wireMockServer.resetAll();
 
-    // Match both /v1/chat/completions and /chat/completions
     stubFor(
-        post(urlMatching(".*/(v1/)?chat/completions"))
+        post(urlPathEqualTo("/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
@@ -149,7 +148,7 @@ class ChatUIEndToEndTest {
     // Step 1: Establish WebSocket connection (simulating UI connection)
     StandardWebSocketClient client = new StandardWebSocketClient();
 
-    String wsUrl = "ws://localhost:" + port + "/api/ws/chat";
+    String wsUrl = "ws://localhost:" + port + "/ws/chat";
     WebSocketSession wsSession =
         client.execute(new TextWebSocketHandler(), wsUrl).get(5, TimeUnit.SECONDS);
     assertThat(wsSession.isOpen()).isTrue();
@@ -263,7 +262,7 @@ class ChatUIEndToEndTest {
   void testWebSocketConnectionEstablishment() throws Exception {
     StandardWebSocketClient client = new StandardWebSocketClient();
 
-    String wsUrl = "ws://localhost:" + port + "/api/ws/chat";
+    String wsUrl = "ws://localhost:" + port + "/ws/chat";
     WebSocketSession wsSession =
         client.execute(new TextWebSocketHandler(), wsUrl).get(5, TimeUnit.SECONDS);
 

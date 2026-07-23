@@ -73,7 +73,7 @@ class ChatIntegrationTest {
     registry.add("model.provider", () -> "openai");
     registry.add("model.openai.api-key", () -> "test-api-key");
     registry.add("model.openai.model-name", () -> "gpt-4");
-    registry.add("model.openai.base-url", () -> "http://localhost:8081");
+    registry.add("model.openai.base-url", () -> "http://localhost:8081/v1");
     registry.add("model.temperature", () -> "0.7");
     registry.add("model.max-tokens", () -> "500");
 
@@ -106,7 +106,7 @@ class ChatIntegrationTest {
 
     // Mock OpenAI chat completion endpoint
     stubFor(
-        post(urlPathEqualTo("/v1/chat/completions"))
+        post(urlPathEqualTo("/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
