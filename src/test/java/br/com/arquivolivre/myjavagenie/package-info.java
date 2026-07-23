@@ -1,4 +1,2 @@
-/**
- * Test package for the Java RAG System.
- */
+/** Test package for the Java RAG System. */
 package br.com.arquivolivre.myjavagenie;

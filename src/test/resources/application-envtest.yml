@@ -1,26 +1,32 @@
+model:
+  provider: ${MODEL_PROVIDER:openai}
+  openai:
+    api-key: ${OPENAI_API_KEY:test-key}
+    model-name: ${OPENAI_MODEL:gpt-4}
+  self-hosted:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    model-name: ${OLLAMA_MODEL:llama2}
+  temperature: ${MODEL_TEMPERATURE:0.7}
+  max-tokens: ${MODEL_MAX_TOKENS:500}
+
+vector-db:
+  type: ${VECTOR_DB_TYPE:chroma}
+  connection-url: ${VECTOR_DB_URL:http://localhost:8000}
+  collection-name: ${VECTOR_DB_COLLECTION:java25_docs}
+
+ingestion:
+  chunk-size: ${CHUNK_SIZE:1000}
+  chunk-overlap: ${CHUNK_OVERLAP:200}
+  batch-size: ${BATCH_SIZE:100}
+
+query:
+  max-retrieved-chunks: ${MAX_CHUNKS:5}
+  similarity-threshold: ${SIMILARITY_THRESHOLD:0.7}
+  timeout-seconds: ${QUERY_TIMEOUT:10}
+
 rag:
-  model:
-    provider: ${MODEL_PROVIDER:openai}
-    openai:
-      apiKey: ${OPENAI_API_KEY:test-key}
-      modelName: ${OPENAI_MODEL:gpt-4}
-    selfHosted:
-      baseUrl: ${OLLAMA_BASE_URL:http://localhost:11434}
-      modelName: ${OLLAMA_MODEL:llama2}
-    temperature: ${MODEL_TEMPERATURE:0.7}
-    maxTokens: ${MODEL_MAX_TOKENS:500}
+  startup-validation:
+    enabled: false
 
-  vectorDb:
-    type: ${VECTOR_DB_TYPE:chroma}
-    connectionUrl: ${VECTOR_DB_URL:http://localhost:8000}
-    collectionName: ${VECTOR_DB_COLLECTION:java25_docs}
-
-  ingestion:
-    chunkSize: ${CHUNK_SIZE:1000}
-    chunkOverlap: ${CHUNK_OVERLAP:200}
-    batchSize: ${BATCH_SIZE:100}
-
-  query:
-    maxRetrievedChunks: ${MAX_CHUNKS:5}
-    similarityThreshold: ${SIMILARITY_THRESHOLD:0.7}
-    timeoutSeconds: ${QUERY_TIMEOUT:10}
+opentelemetry:
+  enabled: false
