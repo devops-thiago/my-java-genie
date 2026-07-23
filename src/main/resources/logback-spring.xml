@@ -62,6 +62,15 @@
         </rollingPolicy>
     </appender>
 
+    <!-- OpenTelemetry appender: bridges log events to the OTel LoggerProvider (exported over
+         OTLP to the collector). Installed with the SDK at startup by OpenTelemetryConfig;
+         buffers events until then. -->
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+        <captureExperimentalAttributes>true</captureExperimentalAttributes>
+        <captureCodeAttributes>true</captureCodeAttributes>
+        <captureMdcAttributes>*</captureMdcAttributes>
+    </appender>
+
     <!-- Separate appender for API request/response logs -->
     <appender name="API_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/api-requests.log</file>
@@ -104,6 +113,7 @@
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
         <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="OTEL"/>
     </root>
 
     <!-- Profile-specific configurations -->

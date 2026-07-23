@@ -10,7 +10,7 @@ model:
     model-name: ${MODEL_NAME:llama2}
     timeout-seconds: 180  # Increased for slower models with large context
   temperature: 0.3  # Lower temperature for more focused, deterministic responses
-  max-tokens: 500
+  max-tokens: 4096
 
 # Vector Database Configuration for Docker
 vector-db:
@@ -31,7 +31,7 @@ ingestion:
 query:
   max-retrieved-chunks: 5
   similarity-threshold: 0.50  # Lowered for better recall - retrieves more relevant documents
-  timeout-seconds: 90  # Increased for slower models with large context from javadocs
+  timeout-seconds: 300  # Allow larger (up to 4k-token) generations from slower cloud models
   enable-cache: true
   cache-ttl-minutes: 120
 

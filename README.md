@@ -10,10 +10,10 @@
 
 ## 🏆 CI/CD & Code Quality
 
-![Build Status](https://github.com/thiagotigaz/my-java-genie/workflows/CI%2FCD%20Pipeline/badge.svg)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=my-java-genie&metric=alert_status)](https://sonarcloud.io/dashboard?id=my-java-genie)
-[![codecov](https://codecov.io/gh/thiagotigaz/my-java-genie/branch/main/graph/badge.svg)](https://codecov.io/gh/thiagotigaz/my-java-genie)
-[![Code Quality](https://img.shields.io/badge/code%20quality-automated-brightgreen)](https://github.com/thiagotigaz/my-java-genie/actions)
+[![Build Status](https://github.com/devops-thiago/my-java-genie/actions/workflows/ci.yml/badge.svg)](https://github.com/devops-thiago/my-java-genie/actions/workflows/ci.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=devops-thiago_my-java-genie&metric=alert_status)](https://sonarcloud.io/dashboard?id=devops-thiago_my-java-genie)
+[![codecov](https://codecov.io/gh/devops-thiago/my-java-genie/branch/main/graph/badge.svg)](https://codecov.io/gh/devops-thiago/my-java-genie)
+[![Code Quality](https://img.shields.io/badge/code%20quality-automated-brightgreen)](https://github.com/devops-thiago/my-java-genie/actions)
 
 ## ✨ Features
 

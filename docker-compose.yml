@@ -4,15 +4,13 @@
 services:
   # ChromaDB Vector Database
   chromadb:
-    image: chromadb/chroma:0.4.24
+    image: chromadb/chroma:1.5.9
     container_name: java-rag-chromadb
     ports:
       - "8000:8000"
     volumes:
-      - chroma-data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
+      # Chroma 1.x persists to /data (configured in the image's /config.yaml).
+      - chroma-data:/data
     networks:
       - rag-network
     healthcheck:
@@ -61,6 +59,11 @@ services:
       - MODEL_BASE_URL=http://ollama:11434
       - MODEL_NAME=llama3.2:1b
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
+      - OPENTELEMETRY_ENABLED=true
+      # The custom OpenTelemetry SDK exports to these per-signal endpoints (Alloy).
+      - OPENTELEMETRY_TRACES_ENDPOINT=http://alloy:4317
+      - OPENTELEMETRY_METRICS_ENDPOINT=http://alloy:4317
+      - OPENTELEMETRY_LOGS_ENDPOINT=http://alloy:4317
       - ENVIRONMENT=docker
     volumes:
       - ./docs:/app/docs:ro
@@ -106,7 +109,7 @@ services:
 
   # Grafana Tempo for Distributed Tracing
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.6.1
     container_name: java-rag-tempo
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:

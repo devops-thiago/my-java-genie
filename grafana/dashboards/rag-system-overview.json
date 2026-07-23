@@ -72,7 +72,10 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -84,12 +87,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(rag_query_duration_bucket[5m])) by (le, provider))",
+          "expr": "histogram_quantile(0.95, sum(rate(rag_query_duration_milliseconds_bucket[5m])) by (le, provider))",
           "legendFormat": "{{provider}} - p95",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.50, sum(rate(rag_query_duration_bucket[5m])) by (le, provider))",
+          "expr": "histogram_quantile(0.50, sum(rate(rag_query_duration_milliseconds_bucket[5m])) by (le, provider))",
           "legendFormat": "{{provider}} - p50",
           "refId": "B"
         }
@@ -160,7 +163,10 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": ["mean", "last"],
+          "calcs": [
+            "mean",
+            "last"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -243,7 +249,10 @@
       "id": 3,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -311,7 +320,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -319,7 +330,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(rag_tokens_cost[5m])) by (provider)",
+          "expr": "sum(increase(rag_tokens_cost_USD_sum[5m])) by (provider)",
           "legendFormat": "{{provider}}",
           "refId": "A"
         }
@@ -390,7 +401,10 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["mean", "last"],
+          "calcs": [
+            "mean",
+            "last"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -402,7 +416,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(rag_query_errors[5m])) by (error_type)",
+          "expr": "sum(rate(rag_query_errors_total[5m])) by (error_type)",
           "legendFormat": "{{error_type}}",
           "refId": "A"
         }
@@ -414,7 +428,11 @@
   "refresh": "10s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["rag", "java", "observability"],
+  "tags": [
+    "rag",
+    "java",
+    "observability"
+  ],
   "templating": {
     "list": []
   },
