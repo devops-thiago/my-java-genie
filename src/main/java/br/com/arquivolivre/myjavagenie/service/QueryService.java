@@ -128,9 +128,14 @@ public class QueryService {
           span.setAttribute("llm.provider", languageModel.getProviderName());
         }
 
-        // Step 4: Extract source references
+        // Step 4: Extract source references. When the model returned the fixed out-of-scope reply
+        // (the retrieved context did not answer the question), do not attach irrelevant sources.
         logger.debug("Step 4: Extracting source references");
-        List<SourceReference> sources = extractSourceReferences(scoredChunks);
+        boolean outOfScope =
+            answer != null
+                && answer.contains("I can only answer questions about the Java 25 documentation");
+        List<SourceReference> sources =
+            outOfScope ? List.of() : extractSourceReferences(scoredChunks);
 
         // Step 5: Track token usage
         logger.debug("Step 5: Recording token usage");
