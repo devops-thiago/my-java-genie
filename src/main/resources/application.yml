@@ -18,6 +18,10 @@ ingestion:
   chunk-size: 1000
   chunk-overlap: 200
 
+vector-db:
+  connection-url: ${VECTOR_DB_URL:http://localhost:8000}
+  collection-name: workshop_docs
+
 chat:
   session:
     timeout-seconds: 1800

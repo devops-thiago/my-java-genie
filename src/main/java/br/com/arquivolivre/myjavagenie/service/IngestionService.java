@@ -3,6 +3,7 @@ package br.com.arquivolivre.myjavagenie.service;
 import br.com.arquivolivre.myjavagenie.model.DocumentChunk;
 import br.com.arquivolivre.myjavagenie.model.IngestionResult;
 import br.com.arquivolivre.myjavagenie.model.LoadedDocument;
+import br.com.arquivolivre.myjavagenie.repository.VectorStoreRepository;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,10 +17,15 @@ public class IngestionService {
 
   private final DocumentLoader documentLoader;
   private final RecursiveCharacterSplitter splitter;
+  private final VectorStoreRepository vectorStoreRepository;
 
-  public IngestionService(DocumentLoader documentLoader, RecursiveCharacterSplitter splitter) {
+  public IngestionService(
+      DocumentLoader documentLoader,
+      RecursiveCharacterSplitter splitter,
+      VectorStoreRepository vectorStoreRepository) {
     this.documentLoader = documentLoader;
     this.splitter = splitter;
+    this.vectorStoreRepository = vectorStoreRepository;
   }
 
   public IngestionResult ingest(String path) {
@@ -40,10 +46,8 @@ public class IngestionService {
       }
     }
 
-    logger.info(
-        "Ingestion prepared {} documents into {} chunks (embed/store comes next)",
-        documents.size(),
-        chunks.size());
+    vectorStoreRepository.storeAll(chunks);
+    logger.info("Ingested {} documents into {} embedded chunks", documents.size(), chunks.size());
     return new IngestionResult(documents.size(), chunks.size(), sizes);
   }
 }

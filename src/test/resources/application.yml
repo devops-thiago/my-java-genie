@@ -6,6 +6,14 @@ llm:
   max-tokens: 128
   timeout-seconds: 5
 
+ingestion:
+  chunk-size: 200
+  chunk-overlap: 20
+
+vector-db:
+  connection-url: http://localhost:8000
+  collection-name: workshop_test
+
 chat:
   session:
     timeout-seconds: 1800
