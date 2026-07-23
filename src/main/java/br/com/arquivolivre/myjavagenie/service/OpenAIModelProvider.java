@@ -5,13 +5,15 @@ import br.com.arquivolivre.myjavagenie.exception.ModelInvocationException;
 import br.com.arquivolivre.myjavagenie.exception.ModelTimeoutException;
 import br.com.arquivolivre.myjavagenie.model.GenerationRequest;
 import br.com.arquivolivre.myjavagenie.model.GenerationResponse;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import java.time.Duration;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Language model provider for OpenAI API. Implements token usage tracking from API responses. */
-public class OpenAIModelProvider implements LanguageModelProvider {
+public final class OpenAIModelProvider implements LanguageModelProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(OpenAIModelProvider.class);
   private static final int MAX_RETRIES = 3;
@@ -27,34 +29,34 @@ public class OpenAIModelProvider implements LanguageModelProvider {
    * @param config the model configuration
    */
   public OpenAIModelProvider(ModelConfig config) {
-    ModelConfig.OpenAISettings settings = config.getOpenai();
+    ModelConfig.OpenAISettings settings = config.openai();
     if (settings == null) {
       throw new IllegalArgumentException("OpenAI settings are required");
     }
 
-    if (settings.getApiKey() == null || settings.getApiKey().isEmpty()) {
+    if (settings.apiKey() == null || settings.apiKey().isEmpty()) {
       throw new IllegalArgumentException("OpenAI API key is required");
     }
 
-    this.modelName = settings.getModelName();
-    this.timeoutSeconds = settings.getTimeoutSeconds() != null ? settings.getTimeoutSeconds() : 60;
+    this.modelName = settings.modelName();
+    this.timeoutSeconds = settings.timeoutSeconds() != null ? settings.timeoutSeconds() : 60;
 
-    logger.info("Initializing OpenAI model provider: {}", modelName);
+    logger.info("Initializing OpenAI model provider: {}", LogSanitizer.sanitize(modelName));
 
     var builder =
         OpenAiChatModel.builder()
-            .apiKey(settings.getApiKey())
+            .apiKey(settings.apiKey())
             .modelName(modelName)
-            .temperature(config.getTemperature())
-            .maxTokens(config.getMaxTokens())
+            .temperature(config.temperature())
+            .maxTokens(config.maxTokens())
             .timeout(Duration.ofSeconds(timeoutSeconds))
             .logRequests(false)
             .logResponses(false);
 
     // Allow custom base URL for testing
-    if (settings.getBaseUrl() != null && !settings.getBaseUrl().isEmpty()) {
-      builder.baseUrl(settings.getBaseUrl());
-      logger.info("Using custom OpenAI base URL: {}", settings.getBaseUrl());
+    if (settings.baseUrl() != null && !settings.baseUrl().isEmpty()) {
+      builder.baseUrl(settings.baseUrl());
+      logger.info("Using custom OpenAI base URL: {}", LogSanitizer.sanitize(settings.baseUrl()));
     }
 
     this.chatModel = builder.build();
@@ -64,7 +66,7 @@ public class OpenAIModelProvider implements LanguageModelProvider {
   public GenerationResponse generate(GenerationRequest request) {
     logger.debug(
         "Generating response for prompt with {} characters",
-        request.getPrompt() != null ? request.getPrompt().length() : 0);
+        LogSanitizer.sanitize(request.getPrompt() != null ? request.getPrompt().length() : 0));
 
     int attempt = 0;
     Exception lastException = null;
@@ -73,10 +75,10 @@ public class OpenAIModelProvider implements LanguageModelProvider {
       try {
         long startTime = System.currentTimeMillis();
 
-        String responseText = chatModel.generate(request.getPrompt());
+        String responseText = chatModel.chat(request.getPrompt());
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.debug("Generation completed in {}ms", duration);
+        logger.debug("Generation completed in {}ms", LogSanitizer.sanitize(duration));
 
         // OpenAI basic chat model doesn't provide token usage in simple generate()
         // Estimate tokens (rough approximation: 1 token ≈ 4 characters)
@@ -85,9 +87,9 @@ public class OpenAIModelProvider implements LanguageModelProvider {
 
         logger.info(
             "OpenAI estimated token usage - prompt: {}, completion: {}, total: {}",
-            promptTokens,
-            completionTokens,
-            promptTokens + completionTokens);
+            LogSanitizer.sanitize(promptTokens),
+            LogSanitizer.sanitize(completionTokens),
+            LogSanitizer.sanitize(promptTokens + completionTokens));
 
         return new GenerationResponse(
             responseText, promptTokens, completionTokens, promptTokens + completionTokens);
@@ -97,7 +99,8 @@ public class OpenAIModelProvider implements LanguageModelProvider {
         lastException = e;
 
         if (isTimeoutException(e)) {
-          logger.error("Model invocation timed out after {} seconds", timeoutSeconds);
+          logger.error(
+              "Model invocation timed out after {} seconds", LogSanitizer.sanitize(timeoutSeconds));
           throw new ModelTimeoutException(
               "Model generation timed out after " + timeoutSeconds + " seconds", e);
         }
@@ -110,10 +113,10 @@ public class OpenAIModelProvider implements LanguageModelProvider {
           long delay = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attempt - 1);
           logger.warn(
               "Model invocation failed (attempt {}/{}), retrying in {}ms: {}",
-              attempt,
+              LogSanitizer.sanitize(attempt),
               MAX_RETRIES,
-              delay,
-              e.getMessage());
+              LogSanitizer.sanitize(delay),
+              LogSanitizer.sanitize(e.getMessage()));
 
           try {
             Thread.sleep(delay);
@@ -135,10 +138,10 @@ public class OpenAIModelProvider implements LanguageModelProvider {
   public boolean isAvailable() {
     try {
       // Try a simple generation to check availability
-      String response = chatModel.generate("test");
+      String response = chatModel.chat("test");
       return response != null;
     } catch (Exception e) {
-      logger.warn("Model availability check failed: {}", e.getMessage());
+      logger.warn("Model availability check failed: {}", LogSanitizer.sanitize(e.getMessage()));
       return false;
     }
   }
@@ -171,7 +174,7 @@ public class OpenAIModelProvider implements LanguageModelProvider {
   private boolean isTimeoutException(Exception e) {
     return e instanceof java.util.concurrent.TimeoutException
         || e.getCause() instanceof java.util.concurrent.TimeoutException
-        || (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"));
+        || (e.getMessage() != null && e.getMessage().toLowerCase(Locale.ROOT).contains("timeout"));
   }
 
   /**
@@ -182,7 +185,7 @@ public class OpenAIModelProvider implements LanguageModelProvider {
    */
   private boolean isRateLimitException(Exception e) {
     return e.getMessage() != null
-        && (e.getMessage().toLowerCase().contains("rate limit")
-            || e.getMessage().toLowerCase().contains("429"));
+        && (e.getMessage().toLowerCase(Locale.ROOT).contains("rate limit")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("429"));
   }
 }

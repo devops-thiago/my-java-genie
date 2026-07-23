@@ -27,7 +27,7 @@ public class GenerationRequest {
     this.prompt = prompt;
     this.temperature = temperature;
     this.maxTokens = maxTokens;
-    this.stopSequences = stopSequences != null ? stopSequences : new ArrayList<>();
+    this.stopSequences = stopSequences != null ? new ArrayList<>(stopSequences) : new ArrayList<>();
   }
 
   public String getPrompt() {
@@ -55,11 +55,11 @@ public class GenerationRequest {
   }
 
   public List<String> getStopSequences() {
-    return stopSequences;
+    return stopSequences == null ? null : new ArrayList<>(stopSequences);
   }
 
   public void setStopSequences(List<String> stopSequences) {
-    this.stopSequences = stopSequences;
+    this.stopSequences = stopSequences != null ? new ArrayList<>(stopSequences) : new ArrayList<>();
   }
 
   @Override

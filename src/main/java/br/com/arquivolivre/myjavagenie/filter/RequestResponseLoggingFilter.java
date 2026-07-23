@@ -1,11 +1,13 @@
 package br.com.arquivolivre.myjavagenie.filter;
 
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -93,7 +95,7 @@ public class RequestResponseLoggingFilter implements Filter {
       }
     }
 
-    logger.info(logMessage.toString());
+    logger.info(LogSanitizer.sanitize(logMessage.toString()));
   }
 
   /** Logs HTTP response details. */
@@ -112,7 +114,7 @@ public class RequestResponseLoggingFilter implements Filter {
       }
     }
 
-    logger.info(logMessage.toString());
+    logger.info(LogSanitizer.sanitize(logMessage.toString()));
   }
 
   /** Extracts request payload from cached content. */
@@ -135,7 +137,7 @@ public class RequestResponseLoggingFilter implements Filter {
 
   /** Checks if a header is sensitive and should not be logged. */
   private boolean isSensitiveHeader(String headerName) {
-    String lowerName = headerName.toLowerCase();
+    String lowerName = headerName.toLowerCase(Locale.ROOT);
     return lowerName.contains("authorization")
         || lowerName.contains("password")
         || lowerName.contains("token")

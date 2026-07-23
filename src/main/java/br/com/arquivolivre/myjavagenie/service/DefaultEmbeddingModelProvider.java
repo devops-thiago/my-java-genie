@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * Default implementation of EmbeddingModelProvider using LangChain4j's all-MiniLM-L6-v2 model. This
  * is a local embedding model that runs without requiring external API calls.
  */
-public class DefaultEmbeddingModelProvider implements EmbeddingModelProvider {
+public final class DefaultEmbeddingModelProvider implements EmbeddingModelProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(DefaultEmbeddingModelProvider.class);
 

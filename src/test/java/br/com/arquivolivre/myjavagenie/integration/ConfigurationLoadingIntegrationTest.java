@@ -22,10 +22,10 @@ class ConfigurationLoadingIntegrationTest {
 
   @Container
   static GenericContainer<?> chromaContainer =
-      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:0.4.15"))
+      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:1.5.9"))
           .withExposedPorts(8000)
           .waitingFor(
-              Wait.forHttp("/api/v1/heartbeat")
+              Wait.forHttp("/api/v2/heartbeat")
                   .forPort(8000)
                   .forStatusCode(200)
                   .withStartupTimeout(Duration.ofSeconds(60)));
@@ -80,12 +80,12 @@ class ConfigurationLoadingIntegrationTest {
   void testModelConfigurationLoading() {
     ModelConfig modelConfig = configurationProvider.getModelConfig();
 
-    assertThat(modelConfig.getProvider()).isEqualTo("self-hosted");
-    assertThat(modelConfig.getSelfHosted()).isNotNull();
-    assertThat(modelConfig.getSelfHosted().getBaseUrl()).isEqualTo("http://localhost:11434");
-    assertThat(modelConfig.getSelfHosted().getModelName()).isEqualTo("llama2");
-    assertThat(modelConfig.getTemperature()).isEqualTo(0.7);
-    assertThat(modelConfig.getMaxTokens()).isEqualTo(500);
+    assertThat(modelConfig.provider()).isEqualTo("self-hosted");
+    assertThat(modelConfig.selfHosted()).isNotNull();
+    assertThat(modelConfig.selfHosted().baseUrl()).isEqualTo("http://localhost:11434");
+    assertThat(modelConfig.selfHosted().modelName()).isEqualTo("llama2");
+    assertThat(modelConfig.temperature()).isEqualTo(0.7);
+    assertThat(modelConfig.maxTokens()).isEqualTo(500);
   }
 
   /** Test Requirement 7.1: Verify vector database configuration loading */
@@ -93,10 +93,10 @@ class ConfigurationLoadingIntegrationTest {
   void testVectorDbConfigurationLoading() {
     VectorDbConfig vectorDbConfig = configurationProvider.getVectorDbConfig();
 
-    assertThat(vectorDbConfig.getType()).isEqualTo("chroma");
-    assertThat(vectorDbConfig.getConnectionUrl())
+    assertThat(vectorDbConfig.type()).isEqualTo("chroma");
+    assertThat(vectorDbConfig.connectionUrl())
         .isEqualTo("http://localhost:" + chromaContainer.getMappedPort(8000));
-    assertThat(vectorDbConfig.getCollectionName()).isEqualTo("java25_docs");
+    assertThat(vectorDbConfig.collectionName()).isEqualTo("java25_docs");
   }
 
   /** Test Requirement 7.2: Verify ingestion configuration loading */
@@ -104,9 +104,9 @@ class ConfigurationLoadingIntegrationTest {
   void testIngestionConfigurationLoading() {
     IngestionConfig ingestionConfig = configurationProvider.getIngestionConfig();
 
-    assertThat(ingestionConfig.getChunkSize()).isEqualTo(1000);
-    assertThat(ingestionConfig.getChunkOverlap()).isEqualTo(200);
-    assertThat(ingestionConfig.getBatchSize()).isEqualTo(100);
+    assertThat(ingestionConfig.chunkSize()).isEqualTo(1000);
+    assertThat(ingestionConfig.chunkOverlap()).isEqualTo(200);
+    assertThat(ingestionConfig.batchSize()).isEqualTo(100);
   }
 
   /** Test Requirement 7.2: Verify query configuration loading */
@@ -114,9 +114,9 @@ class ConfigurationLoadingIntegrationTest {
   void testQueryConfigurationLoading() {
     QueryConfig queryConfig = configurationProvider.getQueryConfig();
 
-    assertThat(queryConfig.getMaxRetrievedChunks()).isEqualTo(5);
-    assertThat(queryConfig.getSimilarityThreshold()).isEqualTo(0.7);
-    assertThat(queryConfig.getTimeoutSeconds()).isEqualTo(10);
+    assertThat(queryConfig.maxRetrievedChunks()).isEqualTo(5);
+    assertThat(queryConfig.similarityThreshold()).isEqualTo(0.7);
+    assertThat(queryConfig.timeoutSeconds()).isEqualTo(10);
   }
 
   /** Test Requirement 7.3: Verify embedding model parameters */
@@ -124,8 +124,8 @@ class ConfigurationLoadingIntegrationTest {
   void testEmbeddingModelConfiguration() {
     ModelConfig modelConfig = configurationProvider.getModelConfig();
 
-    assertThat(modelConfig.getTemperature()).isBetween(0.0, 2.0);
-    assertThat(modelConfig.getMaxTokens()).isGreaterThan(0);
+    assertThat(modelConfig.temperature()).isBetween(0.0, 2.0);
+    assertThat(modelConfig.maxTokens()).isGreaterThan(0);
   }
 
   /** Test Requirement 7.4: Verify language model parameters */
@@ -133,8 +133,8 @@ class ConfigurationLoadingIntegrationTest {
   void testLanguageModelConfiguration() {
     ModelConfig modelConfig = configurationProvider.getModelConfig();
 
-    assertThat(modelConfig.getProvider()).isIn("self-hosted", "openai", "anthropic");
-    assertThat(modelConfig.getTemperature()).isNotNull();
-    assertThat(modelConfig.getMaxTokens()).isNotNull();
+    assertThat(modelConfig.provider()).isIn("self-hosted", "openai", "anthropic");
+    assertThat(modelConfig.temperature()).isNotNull();
+    assertThat(modelConfig.maxTokens()).isNotNull();
   }
 }

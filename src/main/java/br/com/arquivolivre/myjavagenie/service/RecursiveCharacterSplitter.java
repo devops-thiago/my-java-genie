@@ -52,7 +52,7 @@ public class RecursiveCharacterSplitter implements DocumentProcessor {
     }
 
     List<DocumentChunk> chunks = new ArrayList<>();
-    List<String> textChunks = splitText(text, config.getChunkSize(), config.getChunkOverlap());
+    List<String> textChunks = splitText(text, config.chunkSize(), config.chunkOverlap());
 
     for (int i = 0; i < textChunks.size(); i++) {
       String chunkContent = textChunks.get(i);

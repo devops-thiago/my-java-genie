@@ -1,9 +1,11 @@
 package br.com.arquivolivre.myjavagenie.config;
 
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
-import java.net.Socket;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.channels.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.health.Health;
@@ -44,16 +46,16 @@ public class OpenTelemetryHealthIndicator implements HealthIndicator {
       if (collectorReachable) {
         return Health.up()
             .withDetail("status", "OpenTelemetry collector is reachable")
-            .withDetail("endpoint", properties.getTraces().getEndpoint())
-            .withDetail("service", properties.getServiceName())
-            .withDetail("traces_enabled", properties.getTraces().isEnabled())
-            .withDetail("metrics_enabled", properties.getMetrics().isEnabled())
-            .withDetail("logs_enabled", properties.getLogs().isEnabled())
+            .withDetail("endpoint", properties.traces().endpoint())
+            .withDetail("service", properties.serviceName())
+            .withDetail("traces_enabled", properties.traces().enabled())
+            .withDetail("metrics_enabled", properties.metrics().enabled())
+            .withDetail("logs_enabled", properties.logs().enabled())
             .build();
       } else {
         return Health.down()
             .withDetail("status", "OpenTelemetry collector is not reachable")
-            .withDetail("endpoint", properties.getTraces().getEndpoint())
+            .withDetail("endpoint", properties.traces().endpoint())
             .withDetail(
                 "note", "Application continues to function, but telemetry data may not be exported")
             .build();
@@ -70,7 +72,7 @@ public class OpenTelemetryHealthIndicator implements HealthIndicator {
   /** Checks if the OpenTelemetry collector is reachable. */
   private boolean checkCollectorConnectivity() {
     try {
-      String endpoint = properties.getTraces().getEndpoint();
+      String endpoint = properties.traces().endpoint();
       URI uri = URI.create(endpoint);
 
       String host = uri.getHost();
@@ -81,15 +83,18 @@ public class OpenTelemetryHealthIndicator implements HealthIndicator {
         port = 4317;
       }
 
-      // Try to establish a socket connection
-      try (Socket socket = new Socket(host, port)) {
-        return socket.isConnected();
+      // Probe TCP reachability of the collector without opening a data channel.
+      try (SocketChannel channel = SocketChannel.open()) {
+        return channel.connect(new InetSocketAddress(host, port));
       }
     } catch (IOException e) {
-      logger.debug("OpenTelemetry collector not reachable: {}", e.getMessage());
+      logger.debug(
+          "OpenTelemetry collector not reachable: {}", LogSanitizer.sanitize(e.getMessage()));
       return false;
     } catch (Exception e) {
-      logger.warn("Error checking OpenTelemetry collector connectivity: {}", e.getMessage());
+      logger.warn(
+          "Error checking OpenTelemetry collector connectivity: {}",
+          LogSanitizer.sanitize(e.getMessage()));
       return false;
     }
   }

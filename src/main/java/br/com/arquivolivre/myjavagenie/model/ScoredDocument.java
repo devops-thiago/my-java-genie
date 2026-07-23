@@ -13,16 +13,16 @@ public class ScoredDocument {
   public ScoredDocument() {}
 
   public ScoredDocument(DocumentChunk chunk, double similarityScore) {
-    this.chunk = chunk;
+    this.chunk = DocumentChunk.copyOf(chunk);
     this.similarityScore = similarityScore;
   }
 
   public DocumentChunk getChunk() {
-    return chunk;
+    return DocumentChunk.copyOf(chunk);
   }
 
   public void setChunk(DocumentChunk chunk) {
-    this.chunk = chunk;
+    this.chunk = DocumentChunk.copyOf(chunk);
   }
 
   public double getSimilarityScore() {

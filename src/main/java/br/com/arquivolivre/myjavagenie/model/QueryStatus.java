@@ -22,7 +22,7 @@ public class QueryStatus {
     this.stage = ProcessingStage.COMPLETED;
     this.message = "Query processing completed";
     this.completed = true;
-    this.response = response;
+    this.response = ChatResponse.copyOf(response);
   }
 
   public String getSessionId() {
@@ -58,11 +58,11 @@ public class QueryStatus {
   }
 
   public ChatResponse getResponse() {
-    return response;
+    return ChatResponse.copyOf(response);
   }
 
   public void setResponse(ChatResponse response) {
-    this.response = response;
+    this.response = ChatResponse.copyOf(response);
   }
 
   @Override

@@ -57,11 +57,12 @@ public class IngestionResult {
   }
 
   public List<String> getFailedDocuments() {
-    return failedDocuments;
+    return failedDocuments == null ? null : new ArrayList<>(failedDocuments);
   }
 
   public void setFailedDocuments(List<String> failedDocuments) {
-    this.failedDocuments = failedDocuments;
+    this.failedDocuments =
+        failedDocuments != null ? new ArrayList<>(failedDocuments) : new ArrayList<>();
   }
 
   public void addFailedDocument(String documentName) {

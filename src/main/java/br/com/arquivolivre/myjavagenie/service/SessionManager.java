@@ -1,6 +1,7 @@
 package br.com.arquivolivre.myjavagenie.service;
 
 import br.com.arquivolivre.myjavagenie.model.ChatSession;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -14,13 +15,16 @@ import org.springframework.stereotype.Service;
  * expiration.
  */
 @Service
-public class SessionManager {
+public class SessionManager implements SessionRegistry {
   private static final Logger logger = LoggerFactory.getLogger(SessionManager.class);
 
   private final Map<String, ChatSession> sessions = new ConcurrentHashMap<>();
 
-  @Value("${chat.session.timeout-seconds:1800}")
-  private long sessionTimeoutSeconds;
+  private final long sessionTimeoutSeconds;
+
+  public SessionManager(@Value("${chat.session.timeout-seconds:1800}") long sessionTimeoutSeconds) {
+    this.sessionTimeoutSeconds = sessionTimeoutSeconds;
+  }
 
   /**
    * Gets an existing session or creates a new one.
@@ -32,7 +36,7 @@ public class SessionManager {
     if (sessionId == null || sessionId.isBlank()) {
       ChatSession newSession = new ChatSession();
       sessions.put(newSession.getSessionId(), newSession);
-      logger.info("Created new chat session: {}", newSession.getSessionId());
+      logger.info("Created new chat session: {}", LogSanitizer.sanitize(newSession.getSessionId()));
       return newSession;
     }
 
@@ -40,10 +44,10 @@ public class SessionManager {
     if (session == null) {
       session = new ChatSession(sessionId);
       sessions.put(sessionId, session);
-      logger.info("Created chat session with provided ID: {}", sessionId);
+      logger.info("Created chat session with provided ID: {}", LogSanitizer.sanitize(sessionId));
     } else {
       session.updateLastAccessedAt();
-      logger.debug("Retrieved existing chat session: {}", sessionId);
+      logger.debug("Retrieved existing chat session: {}", LogSanitizer.sanitize(sessionId));
     }
 
     return session;
@@ -71,7 +75,7 @@ public class SessionManager {
   public void removeSession(String sessionId) {
     ChatSession removed = sessions.remove(sessionId);
     if (removed != null) {
-      logger.info("Removed chat session: {}", sessionId);
+      logger.info("Removed chat session: {}", LogSanitizer.sanitize(sessionId));
     }
   }
 
@@ -79,7 +83,7 @@ public class SessionManager {
   public void clearAllSessions() {
     int count = sessions.size();
     sessions.clear();
-    logger.info("Cleared all {} chat sessions", count);
+    logger.info("Cleared all {} chat sessions", LogSanitizer.sanitize(count));
   }
 
   /**
@@ -101,13 +105,15 @@ public class SessionManager {
       if (entry.getValue().isExpired(sessionTimeoutSeconds)) {
         sessions.remove(entry.getKey());
         removedCount++;
-        logger.info("Removed expired session: {}", entry.getKey());
+        logger.info("Removed expired session: {}", LogSanitizer.sanitize(entry.getKey()));
       }
     }
 
     if (removedCount > 0) {
       logger.info(
-          "Cleaned up {} expired sessions. Active sessions: {}", removedCount, sessions.size());
+          "Cleaned up {} expired sessions. Active sessions: {}",
+          LogSanitizer.sanitize(removedCount),
+          LogSanitizer.sanitize(sessions.size()));
     }
   }
 }

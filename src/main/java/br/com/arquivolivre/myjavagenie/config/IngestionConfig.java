@@ -7,56 +7,33 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-/** Configuration properties for document ingestion settings. */
+/**
+ * Immutable configuration properties for document ingestion settings.
+ *
+ * <p>Populated through Spring Boot constructor binding; construct directly with the canonical
+ * constructor in tests. The {@code supportedFormats} list is defensively copied on both
+ * construction and access so the configuration cannot be mutated through a shared reference.
+ */
 @ConfigurationProperties(prefix = "ingestion")
 @Validated
-public class IngestionConfig {
+public record IngestionConfig(
+    @NotNull(message = "Chunk size must be specified")
+        @Positive(message = "Chunk size must be positive")
+        Integer chunkSize,
+    @NotNull(message = "Chunk overlap must be specified")
+        @PositiveOrZero(message = "Chunk overlap must be zero or positive")
+        Integer chunkOverlap,
+    @NotNull(message = "Batch size must be specified")
+        @Positive(message = "Batch size must be positive")
+        Integer batchSize,
+    List<String> supportedFormats) {
 
-  @NotNull(message = "Chunk size must be specified")
-  @Positive(message = "Chunk size must be positive")
-  private Integer chunkSize;
-
-  @NotNull(message = "Chunk overlap must be specified")
-  @PositiveOrZero(message = "Chunk overlap must be zero or positive")
-  private Integer chunkOverlap;
-
-  @NotNull(message = "Batch size must be specified")
-  @Positive(message = "Batch size must be positive")
-  private Integer batchSize;
-
-  private List<String> supportedFormats;
-
-  // Getters and Setters
-
-  public Integer getChunkSize() {
-    return chunkSize;
+  public IngestionConfig {
+    supportedFormats = supportedFormats == null ? null : List.copyOf(supportedFormats);
   }
 
-  public void setChunkSize(Integer chunkSize) {
-    this.chunkSize = chunkSize;
-  }
-
-  public Integer getChunkOverlap() {
-    return chunkOverlap;
-  }
-
-  public void setChunkOverlap(Integer chunkOverlap) {
-    this.chunkOverlap = chunkOverlap;
-  }
-
-  public Integer getBatchSize() {
-    return batchSize;
-  }
-
-  public void setBatchSize(Integer batchSize) {
-    this.batchSize = batchSize;
-  }
-
-  public List<String> getSupportedFormats() {
-    return supportedFormats;
-  }
-
-  public void setSupportedFormats(List<String> supportedFormats) {
-    this.supportedFormats = supportedFormats;
+  @Override
+  public List<String> supportedFormats() {
+    return supportedFormats == null ? null : List.copyOf(supportedFormats);
   }
 }

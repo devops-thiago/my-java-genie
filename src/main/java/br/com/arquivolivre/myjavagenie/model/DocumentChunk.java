@@ -20,15 +20,28 @@ public class DocumentChunk {
   public DocumentChunk(String content, DocumentMetadata metadata, int tokenCount) {
     this.id = UUID.randomUUID().toString();
     this.content = content;
-    this.metadata = metadata;
+    this.metadata = DocumentMetadata.copyOf(metadata);
     this.tokenCount = tokenCount;
   }
 
   public DocumentChunk(String id, String content, DocumentMetadata metadata, int tokenCount) {
     this.id = id;
     this.content = content;
-    this.metadata = metadata;
+    this.metadata = DocumentMetadata.copyOf(metadata);
     this.tokenCount = tokenCount;
+  }
+
+  /** Copy constructor used for defensive copies. */
+  public DocumentChunk(DocumentChunk other) {
+    this.id = other.id;
+    this.content = other.content;
+    this.metadata = DocumentMetadata.copyOf(other.metadata);
+    this.tokenCount = other.tokenCount;
+  }
+
+  /** Returns a defensive copy of the given chunk, or {@code null} if {@code chunk} is null. */
+  public static DocumentChunk copyOf(DocumentChunk chunk) {
+    return chunk == null ? null : new DocumentChunk(chunk);
   }
 
   public String getId() {
@@ -48,11 +61,11 @@ public class DocumentChunk {
   }
 
   public DocumentMetadata getMetadata() {
-    return metadata;
+    return DocumentMetadata.copyOf(metadata);
   }
 
   public void setMetadata(DocumentMetadata metadata) {
-    this.metadata = metadata;
+    this.metadata = DocumentMetadata.copyOf(metadata);
   }
 
   public int getTokenCount() {

@@ -7,6 +7,7 @@ import br.com.arquivolivre.myjavagenie.exception.VectorDbException;
 import br.com.arquivolivre.myjavagenie.model.QueryRequest;
 import br.com.arquivolivre.myjavagenie.model.QueryResponse;
 import br.com.arquivolivre.myjavagenie.service.QueryService;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,19 +46,19 @@ public class QueryController {
       QueryResponse response = queryService.processQuery(request.getQuestion());
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
-      logger.warn("Invalid query request: {}", e.getMessage());
+      logger.warn("Invalid query request: {}", LogSanitizer.sanitize(e.getMessage()));
       throw e;
     } catch (ModelTimeoutException e) {
-      logger.error("Query timed out: {}", e.getMessage());
+      logger.error("Query timed out: {}", LogSanitizer.sanitize(e.getMessage()));
       throw e;
     } catch (ModelInvocationException e) {
-      logger.error("Model invocation failed: {}", e.getMessage());
+      logger.error("Model invocation failed: {}", LogSanitizer.sanitize(e.getMessage()));
       throw e;
     } catch (VectorDbException e) {
-      logger.error("Vector database error: {}", e.getMessage());
+      logger.error("Vector database error: {}", LogSanitizer.sanitize(e.getMessage()));
       throw e;
     } catch (RagSystemException e) {
-      logger.error("RAG system error: {}", e.getMessage());
+      logger.error("RAG system error: {}", LogSanitizer.sanitize(e.getMessage()));
       throw e;
     }
   }
@@ -67,7 +68,7 @@ public class QueryController {
    */
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
-    logger.debug("Handling IllegalArgumentException: {}", e.getMessage());
+    logger.debug("Handling IllegalArgumentException: {}", LogSanitizer.sanitize(e.getMessage()));
     ErrorResponse error =
         new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Invalid request", e.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
@@ -79,7 +80,7 @@ public class QueryController {
    */
   @ExceptionHandler(ModelTimeoutException.class)
   public ResponseEntity<ErrorResponse> handleModelTimeout(ModelTimeoutException e) {
-    logger.debug("Handling ModelTimeoutException: {}", e.getMessage());
+    logger.debug("Handling ModelTimeoutException: {}", LogSanitizer.sanitize(e.getMessage()));
     ErrorResponse error =
         new ErrorResponse(HttpStatus.GATEWAY_TIMEOUT.value(), "Request timeout", e.getMessage());
     return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(error);
@@ -91,7 +92,7 @@ public class QueryController {
    */
   @ExceptionHandler(ModelInvocationException.class)
   public ResponseEntity<ErrorResponse> handleModelInvocation(ModelInvocationException e) {
-    logger.debug("Handling ModelInvocationException: {}", e.getMessage());
+    logger.debug("Handling ModelInvocationException: {}", LogSanitizer.sanitize(e.getMessage()));
     ErrorResponse error =
         new ErrorResponse(
             HttpStatus.SERVICE_UNAVAILABLE.value(), "Language model unavailable", e.getMessage());
@@ -104,7 +105,7 @@ public class QueryController {
    */
   @ExceptionHandler(VectorDbException.class)
   public ResponseEntity<ErrorResponse> handleVectorDbException(VectorDbException e) {
-    logger.debug("Handling VectorDbException: {}", e.getMessage());
+    logger.debug("Handling VectorDbException: {}", LogSanitizer.sanitize(e.getMessage()));
     ErrorResponse error =
         new ErrorResponse(
             HttpStatus.SERVICE_UNAVAILABLE.value(), "Vector database unavailable", e.getMessage());
@@ -117,7 +118,7 @@ public class QueryController {
    */
   @ExceptionHandler(RagSystemException.class)
   public ResponseEntity<ErrorResponse> handleRagSystemException(RagSystemException e) {
-    logger.debug("Handling RagSystemException: {}", e.getMessage());
+    logger.debug("Handling RagSystemException: {}", LogSanitizer.sanitize(e.getMessage()));
     ErrorResponse error =
         new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "System error", e.getMessage());
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);

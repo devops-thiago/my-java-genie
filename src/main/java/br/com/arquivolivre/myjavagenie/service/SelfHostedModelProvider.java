@@ -5,9 +5,11 @@ import br.com.arquivolivre.myjavagenie.exception.ModelInvocationException;
 import br.com.arquivolivre.myjavagenie.exception.ModelTimeoutException;
 import br.com.arquivolivre.myjavagenie.model.GenerationRequest;
 import br.com.arquivolivre.myjavagenie.model.GenerationResponse;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import java.time.Duration;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,13 +17,13 @@ import org.slf4j.LoggerFactory;
  * Language model provider for self-hosted models using Ollama. Implements retry logic and error
  * handling for connection failures.
  */
-public class SelfHostedModelProvider implements LanguageModelProvider {
+public final class SelfHostedModelProvider implements LanguageModelProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(SelfHostedModelProvider.class);
   private static final int MAX_RETRIES = 3;
   private static final long INITIAL_RETRY_DELAY_MS = 1000;
 
-  private final ChatLanguageModel chatModel;
+  private final ChatModel chatModel;
   private final String modelName;
   private final int timeoutSeconds;
 
@@ -31,22 +33,24 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
    * @param config the model configuration
    */
   public SelfHostedModelProvider(ModelConfig config) {
-    ModelConfig.SelfHostedSettings settings = config.getSelfHosted();
+    ModelConfig.SelfHostedSettings settings = config.selfHosted();
     if (settings == null) {
       throw new IllegalArgumentException("Self-hosted settings are required");
     }
 
-    this.modelName = settings.getModelName();
-    this.timeoutSeconds = settings.getTimeoutSeconds() != null ? settings.getTimeoutSeconds() : 60;
+    this.modelName = settings.modelName();
+    this.timeoutSeconds = settings.timeoutSeconds() != null ? settings.timeoutSeconds() : 60;
 
     logger.info(
-        "Initializing self-hosted model provider: {} at {}", modelName, settings.getBaseUrl());
+        "Initializing self-hosted model provider: {} at {}",
+        LogSanitizer.sanitize(modelName),
+        LogSanitizer.sanitize(settings.baseUrl()));
 
     this.chatModel =
         OllamaChatModel.builder()
-            .baseUrl(settings.getBaseUrl())
+            .baseUrl(settings.baseUrl())
             .modelName(modelName)
-            .temperature(config.getTemperature())
+            .temperature(config.temperature())
             .timeout(Duration.ofSeconds(timeoutSeconds))
             .build();
   }
@@ -55,7 +59,7 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
   public GenerationResponse generate(GenerationRequest request) {
     logger.debug(
         "Generating response for prompt with {} characters",
-        request.getPrompt() != null ? request.getPrompt().length() : 0);
+        LogSanitizer.sanitize(request.getPrompt() != null ? request.getPrompt().length() : 0));
 
     int attempt = 0;
     Exception lastException = null;
@@ -64,10 +68,10 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
       try {
         long startTime = System.currentTimeMillis();
 
-        String response = chatModel.generate(request.getPrompt());
+        String response = chatModel.chat(request.getPrompt());
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.debug("Generation completed in {}ms", duration);
+        logger.debug("Generation completed in {}ms", LogSanitizer.sanitize(duration));
 
         // Ollama doesn't provide token usage in the basic response
         // Estimate tokens (rough approximation: 1 token ≈ 4 characters)
@@ -82,7 +86,8 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
         lastException = e;
 
         if (isTimeoutException(e)) {
-          logger.error("Model invocation timed out after {} seconds", timeoutSeconds);
+          logger.error(
+              "Model invocation timed out after {} seconds", LogSanitizer.sanitize(timeoutSeconds));
           throw new ModelTimeoutException(
               "Model generation timed out after " + timeoutSeconds + " seconds", e);
         }
@@ -91,10 +96,10 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
           long delay = INITIAL_RETRY_DELAY_MS * attempt;
           logger.warn(
               "Model invocation failed (attempt {}/{}), retrying in {}ms: {}",
-              attempt,
+              LogSanitizer.sanitize(attempt),
               MAX_RETRIES,
-              delay,
-              e.getMessage());
+              LogSanitizer.sanitize(delay),
+              LogSanitizer.sanitize(e.getMessage()));
 
           try {
             Thread.sleep(delay);
@@ -116,10 +121,10 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
   public boolean isAvailable() {
     try {
       // Try a simple generation to check availability
-      String testResponse = chatModel.generate("test");
+      String testResponse = chatModel.chat("test");
       return testResponse != null;
     } catch (Exception e) {
-      logger.warn("Model availability check failed: {}", e.getMessage());
+      logger.warn("Model availability check failed: {}", LogSanitizer.sanitize(e.getMessage()));
       return false;
     }
   }
@@ -152,6 +157,6 @@ public class SelfHostedModelProvider implements LanguageModelProvider {
   private boolean isTimeoutException(Exception e) {
     return e instanceof java.util.concurrent.TimeoutException
         || e.getCause() instanceof java.util.concurrent.TimeoutException
-        || e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout");
+        || e.getMessage() != null && e.getMessage().toLowerCase(Locale.ROOT).contains("timeout");
   }
 }

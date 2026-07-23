@@ -1,6 +1,7 @@
 package br.com.arquivolivre.myjavagenie.controller;
 
 import br.com.arquivolivre.myjavagenie.exception.*;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +29,9 @@ public class GlobalExceptionHandler {
       MethodArgumentNotValidException ex, WebRequest request) {
 
     logger.error(
-        "Validation error on request to {}: {}", request.getDescription(false), ex.getMessage());
+        "Validation error on request to {}: {}",
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()));
 
     Map<String, String> errors = new HashMap<>();
     ex.getBindingResult()
@@ -53,8 +56,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Invalid argument on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -74,7 +77,10 @@ public class GlobalExceptionHandler {
       ModelTimeoutException ex, WebRequest request) {
 
     logger.error(
-        "Model timeout on request to {}: {}", request.getDescription(false), ex.getMessage(), ex);
+        "Model timeout on request to {}: {}",
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
+        ex);
 
     ErrorResponse errorResponse =
         new ErrorResponse(
@@ -94,8 +100,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Model invocation failed on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -116,8 +122,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Model initialization failed on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -138,8 +144,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Vector database error on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -160,8 +166,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Ingestion failed on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -182,8 +188,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Configuration error on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -204,8 +210,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "RAG system error on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =
@@ -225,8 +231,8 @@ public class GlobalExceptionHandler {
 
     logger.error(
         "Unexpected error on request to {}: {}",
-        request.getDescription(false),
-        ex.getMessage(),
+        LogSanitizer.sanitize(request.getDescription(false)),
+        LogSanitizer.sanitize(ex.getMessage()),
         ex);
 
     ErrorResponse errorResponse =

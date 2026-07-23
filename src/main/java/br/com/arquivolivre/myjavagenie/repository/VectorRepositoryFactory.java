@@ -2,6 +2,8 @@ package br.com.arquivolivre.myjavagenie.repository;
 
 import br.com.arquivolivre.myjavagenie.config.VectorDbConfig;
 import br.com.arquivolivre.myjavagenie.exception.InvalidConfigurationException;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -28,14 +30,14 @@ public class VectorRepositoryFactory {
       throw new InvalidConfigurationException("VectorDbConfig cannot be null");
     }
 
-    String dbType = config.getType();
+    String dbType = config.type();
     if (dbType == null || dbType.trim().isEmpty()) {
       throw new InvalidConfigurationException("Vector database type must be specified");
     }
 
-    logger.info("Creating vector repository for type: {}", dbType);
+    logger.info("Creating vector repository for type: {}", LogSanitizer.sanitize(dbType));
 
-    switch (dbType.toLowerCase()) {
+    switch (dbType.toLowerCase(Locale.ROOT)) {
       case "chroma":
       case "chromadb":
         return createChromaRepository(config);
@@ -60,13 +62,14 @@ public class VectorRepositoryFactory {
     validateConnectionUrl(config);
     validateCollectionName(config);
 
-    logger.info("Initializing ChromaDB repository at: {}", config.getConnectionUrl());
+    logger.info(
+        "Initializing ChromaDB repository at: {}", LogSanitizer.sanitize(config.connectionUrl()));
     return new ChromaVectorRepository(config);
   }
 
   /** Validates that the connection URL is properly configured. */
   private void validateConnectionUrl(VectorDbConfig config) {
-    String url = config.getConnectionUrl();
+    String url = config.connectionUrl();
     if (url == null || url.trim().isEmpty()) {
       throw new InvalidConfigurationException("Vector database connection URL must be specified");
     }
@@ -74,7 +77,7 @@ public class VectorRepositoryFactory {
 
   /** Validates that the collection name is properly configured. */
   private void validateCollectionName(VectorDbConfig config) {
-    String collectionName = config.getCollectionName();
+    String collectionName = config.collectionName();
     if (collectionName == null || collectionName.trim().isEmpty()) {
       throw new InvalidConfigurationException("Vector database collection name must be specified");
     }

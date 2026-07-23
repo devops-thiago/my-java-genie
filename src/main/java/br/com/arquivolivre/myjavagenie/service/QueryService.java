@@ -6,6 +6,7 @@ import br.com.arquivolivre.myjavagenie.exception.ModelInvocationException;
 import br.com.arquivolivre.myjavagenie.exception.ModelTimeoutException;
 import br.com.arquivolivre.myjavagenie.exception.RagSystemException;
 import br.com.arquivolivre.myjavagenie.model.*;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -45,8 +46,8 @@ public class QueryService {
       TokenUsageTracker tokenTracker,
       QueryConfig queryConfig,
       ModelConfig modelConfig,
-      @Autowired(required = false) Tracer tracer,
-      @Autowired(required = false) MetricsService metricsService) {
+      @Nullable Tracer tracer,
+      @Nullable MetricsService metricsService) {
     this.retrievalEngine = retrievalEngine;
     this.languageModel = languageModel;
     this.promptBuilder = promptBuilder;
@@ -78,7 +79,7 @@ public class QueryService {
         span.setAttribute("query.length", question.length());
       }
 
-      logger.info("Processing query: {}", truncateForLog(question));
+      logger.info("Processing query: {}", LogSanitizer.sanitize(truncateForLog(question)));
       long startTime = System.currentTimeMillis();
 
       try {
@@ -88,7 +89,9 @@ public class QueryService {
 
         // Handle case when no relevant documents are found
         if (relevantChunks.isEmpty()) {
-          logger.warn("No relevant documents found for query: {}", truncateForLog(question));
+          logger.warn(
+              "No relevant documents found for query: {}",
+              LogSanitizer.sanitize(truncateForLog(question)));
           if (span != null) {
             span.setAttribute("query.chunks_retrieved", 0);
             span.setAttribute("query.no_results", true);
@@ -96,7 +99,7 @@ public class QueryService {
           return createNoResultsResponse(question, startTime);
         }
 
-        logger.info("Retrieved {} relevant chunks", relevantChunks.size());
+        logger.info("Retrieved {} relevant chunks", LogSanitizer.sanitize(relevantChunks.size()));
         if (span != null) {
           span.setAttribute("query.chunks_retrieved", relevantChunks.size());
         }
@@ -104,14 +107,16 @@ public class QueryService {
         // Step 2: Build prompt with retrieved context
         logger.debug("Step 2: Building prompt with context");
         String prompt = buildPromptWithSpan(question, relevantChunks);
-        logger.debug("Prompt built with {} characters", prompt.length());
+        logger.debug("Prompt built with {} characters", LogSanitizer.sanitize(prompt.length()));
 
         // Step 3: Generate answer using language model with timeout
         logger.debug("Step 3: Generating answer using language model");
         GenerationResponse generationResponse = generateWithTimeout(prompt);
 
         String answer = generationResponse.getText();
-        logger.info("Generated answer with {} tokens", generationResponse.getTotalTokens());
+        logger.info(
+            "Generated answer with {} tokens",
+            LogSanitizer.sanitize(generationResponse.getTotalTokens()));
 
         if (span != null) {
           span.setAttribute("llm.tokens.prompt", generationResponse.getPromptTokens());
@@ -137,7 +142,7 @@ public class QueryService {
         long responseTime = System.currentTimeMillis() - startTime;
         QueryResponse response = new QueryResponse(answer, sources, tokenMetrics, responseTime);
 
-        logger.info("Query processed successfully in {}ms", responseTime);
+        logger.info("Query processed successfully in {}ms", LogSanitizer.sanitize(responseTime));
         if (span != null) {
           span.setAttribute("query.response_time_ms", responseTime);
           span.setStatus(StatusCode.OK);
@@ -147,7 +152,7 @@ public class QueryService {
         if (metricsService != null) {
           metricsService.recordQuerySuccess(
               languageModel.getProviderName(),
-              modelConfig.getProvider(),
+              modelConfig.provider(),
               responseTime,
               generationResponse.getPromptTokens(),
               generationResponse.getCompletionTokens());
@@ -157,19 +162,26 @@ public class QueryService {
 
       } catch (ModelTimeoutException e) {
         long responseTime = System.currentTimeMillis() - startTime;
-        logger.error("Query timed out after {}ms: {}", responseTime, e.getMessage());
+        logger.error(
+            "Query timed out after {}ms: {}",
+            LogSanitizer.sanitize(responseTime),
+            LogSanitizer.sanitize(e.getMessage()));
         if (span != null) {
           span.setStatus(StatusCode.ERROR, "Query timeout");
           span.recordException(e);
         }
         if (metricsService != null) {
           metricsService.recordQueryError(
-              languageModel.getProviderName(), modelConfig.getProvider(), "timeout", responseTime);
+              languageModel.getProviderName(), modelConfig.provider(), "timeout", responseTime);
         }
         throw e;
       } catch (ModelInvocationException e) {
         long responseTime = System.currentTimeMillis() - startTime;
-        logger.error("Model invocation failed after {}ms: {}", responseTime, e.getMessage(), e);
+        logger.error(
+            "Model invocation failed after {}ms: {}",
+            LogSanitizer.sanitize(responseTime),
+            LogSanitizer.sanitize(e.getMessage()),
+            e);
         if (span != null) {
           span.setStatus(StatusCode.ERROR, "Model invocation failed");
           span.recordException(e);
@@ -177,24 +189,22 @@ public class QueryService {
         if (metricsService != null) {
           metricsService.recordQueryError(
               languageModel.getProviderName(),
-              modelConfig.getProvider(),
+              modelConfig.provider(),
               "model_invocation",
               responseTime);
         }
         throw e;
       } catch (Exception e) {
         long responseTime = System.currentTimeMillis() - startTime;
-        logger.error("Unexpected error processing query after {}ms", responseTime, e);
+        logger.error(
+            "Unexpected error processing query after {}ms", LogSanitizer.sanitize(responseTime), e);
         if (span != null) {
           span.setStatus(StatusCode.ERROR, "Unexpected error");
           span.recordException(e);
         }
         if (metricsService != null) {
           metricsService.recordQueryError(
-              languageModel.getProviderName(),
-              modelConfig.getProvider(),
-              "unexpected",
-              responseTime);
+              languageModel.getProviderName(), modelConfig.provider(), "unexpected", responseTime);
         }
         throw new RagSystemException("Failed to process query: " + e.getMessage(), e);
       }
@@ -245,15 +255,15 @@ public class QueryService {
     try (Scope scope = span != null ? span.makeCurrent() : null) {
       if (span != null) {
         span.setAttribute("llm.provider", languageModel.getProviderName());
-        span.setAttribute("llm.temperature", modelConfig.getTemperature());
-        span.setAttribute("llm.max_tokens", modelConfig.getMaxTokens());
+        span.setAttribute("llm.temperature", modelConfig.temperature());
+        span.setAttribute("llm.max_tokens", modelConfig.maxTokens());
         span.setAttribute("llm.prompt_length", prompt.length());
       }
 
       GenerationRequest request =
-          new GenerationRequest(prompt, modelConfig.getTemperature(), modelConfig.getMaxTokens());
+          new GenerationRequest(prompt, modelConfig.temperature(), modelConfig.maxTokens());
 
-      int timeoutSeconds = queryConfig.getTimeoutSeconds();
+      int timeoutSeconds = queryConfig.timeoutSeconds();
 
       // Execute generation asynchronously with timeout
       CompletableFuture<GenerationResponse> future =
@@ -276,7 +286,9 @@ public class QueryService {
         return response;
       } catch (TimeoutException e) {
         future.cancel(true);
-        logger.error("Language model generation timed out after {} seconds", timeoutSeconds);
+        logger.error(
+            "Language model generation timed out after {} seconds",
+            LogSanitizer.sanitize(timeoutSeconds));
         if (span != null) {
           span.setStatus(StatusCode.ERROR, "Timeout");
           span.recordException(e);

@@ -40,10 +40,10 @@ class OpenTelemetryEndToEndTest {
 
   @Container
   static GenericContainer<?> chromaContainer =
-      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:0.4.15"))
+      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:1.5.9"))
           .withExposedPorts(8000)
           .waitingFor(
-              Wait.forHttp("/api/v1/heartbeat")
+              Wait.forHttp("/api/v2/heartbeat")
                   .forPort(8000)
                   .forStatusCode(200)
                   .withStartupTimeout(Duration.ofSeconds(60)));

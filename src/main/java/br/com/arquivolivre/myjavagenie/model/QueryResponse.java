@@ -25,8 +25,8 @@ public class QueryResponse {
       TokenUsageMetrics tokenUsage,
       long responseTimeMs) {
     this.answer = answer;
-    this.sources = sources != null ? sources : new ArrayList<>();
-    this.tokenUsage = tokenUsage;
+    this.sources = sources != null ? new ArrayList<>(sources) : new ArrayList<>();
+    this.tokenUsage = TokenUsageMetrics.copyOf(tokenUsage);
     this.responseTimeMs = responseTimeMs;
   }
 
@@ -37,8 +37,8 @@ public class QueryResponse {
       long responseTimeMs,
       String sessionId) {
     this.answer = answer;
-    this.sources = sources != null ? sources : new ArrayList<>();
-    this.tokenUsage = tokenUsage;
+    this.sources = sources != null ? new ArrayList<>(sources) : new ArrayList<>();
+    this.tokenUsage = TokenUsageMetrics.copyOf(tokenUsage);
     this.responseTimeMs = responseTimeMs;
     this.sessionId = sessionId;
   }
@@ -52,19 +52,19 @@ public class QueryResponse {
   }
 
   public List<SourceReference> getSources() {
-    return sources;
+    return sources == null ? null : new ArrayList<>(sources);
   }
 
   public void setSources(List<SourceReference> sources) {
-    this.sources = sources;
+    this.sources = sources == null ? null : new ArrayList<>(sources);
   }
 
   public TokenUsageMetrics getTokenUsage() {
-    return tokenUsage;
+    return TokenUsageMetrics.copyOf(tokenUsage);
   }
 
   public void setTokenUsage(TokenUsageMetrics tokenUsage) {
-    this.tokenUsage = tokenUsage;
+    this.tokenUsage = TokenUsageMetrics.copyOf(tokenUsage);
   }
 
   public long getResponseTimeMs() {

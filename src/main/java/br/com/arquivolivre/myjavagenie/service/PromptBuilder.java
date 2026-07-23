@@ -18,10 +18,6 @@ public class PromptBuilder {
           + "If the context doesn't contain relevant information, say so. "
           + "Keep answers concise and cite sources when possible.";
 
-  private static final String USER_PROMPT_TEMPLATE = "Context:\n%s\n\nQuestion: %s\n\nAnswer:";
-
-  private static final String CONTEXT_CHUNK_TEMPLATE = "[Source: %s%s]\n%s";
-
   /**
    * Builds a complete prompt for the language model.
    *
@@ -35,7 +31,7 @@ public class PromptBuilder {
     }
 
     String context = formatContext(retrievedChunks);
-    return String.format(USER_PROMPT_TEMPLATE, context, question);
+    return "Context:\n" + context + "\n\nQuestion: " + question + "\n\nAnswer:";
   }
 
   /**
@@ -78,6 +74,6 @@ public class PromptBuilder {
             ? ", Section: " + chunk.getMetadata().getSection()
             : "";
 
-    return String.format(CONTEXT_CHUNK_TEMPLATE, sourceFile, section, chunk.getContent());
+    return "[Source: " + sourceFile + section + "]\n" + chunk.getContent();
   }
 }

@@ -3,11 +3,13 @@ package br.com.arquivolivre.myjavagenie.service;
 import br.com.arquivolivre.myjavagenie.exception.DocumentProcessingException;
 import br.com.arquivolivre.myjavagenie.model.Document;
 import br.com.arquivolivre.myjavagenie.model.DocumentMetadata;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -20,7 +22,7 @@ import org.springframework.stereotype.Service;
  * Markdown, HTML, and plain text.
  */
 @Service
-public class DocumentLoader {
+public final class DocumentLoader implements DocumentReader {
 
   private static final Logger logger = LoggerFactory.getLogger(DocumentLoader.class);
 
@@ -73,16 +75,19 @@ public class DocumentLoader {
                 try {
                   Document doc = loadDocument(path);
                   documents.add(doc);
-                  logger.info("Loaded document: {}", path.getFileName());
+                  logger.info("Loaded document: {}", LogSanitizer.sanitize(path.getFileName()));
                 } catch (Exception e) {
-                  logger.error("Failed to load document: {}", path, e);
+                  logger.error("Failed to load document: {}", LogSanitizer.sanitize(path), e);
                 }
               });
     } catch (IOException e) {
       throw new DocumentProcessingException("Failed to walk directory: " + directoryPath, e);
     }
 
-    logger.info("Loaded {} documents from {}", documents.size(), directoryPath);
+    logger.info(
+        "Loaded {} documents from {}",
+        LogSanitizer.sanitize(documents.size()),
+        LogSanitizer.sanitize(directoryPath));
     return documents;
   }
 
@@ -116,15 +121,23 @@ public class DocumentLoader {
     }
   }
 
+  /**
+   * Returns the file name of the given path, or an empty string if the path has no name element.
+   */
+  private static String fileName(Path path) {
+    Path name = path.getFileName();
+    return name != null ? name.toString() : "";
+  }
+
   /** Check if a file is supported based on its extension. */
   private boolean isSupportedFile(Path filePath) {
-    String fileName = filePath.getFileName().toString().toLowerCase();
+    String fileName = fileName(filePath).toLowerCase(Locale.ROOT);
     return SUPPORTED_EXTENSIONS.stream().anyMatch(fileName::endsWith);
   }
 
   /** Extract metadata from file path and content. */
   private DocumentMetadata extractMetadata(Path filePath, String content) {
-    String fileName = filePath.getFileName().toString();
+    String fileName = fileName(filePath);
     String section = extractSection(filePath, content);
 
     DocumentMetadata metadata = new DocumentMetadata(fileName, section, 0);
@@ -139,7 +152,7 @@ public class DocumentLoader {
     // Add parent directory as category
     Path parent = filePath.getParent();
     if (parent != null) {
-      metadata.addProperty("category", parent.getFileName().toString());
+      metadata.addProperty("category", fileName(parent));
     }
 
     return metadata;
@@ -147,7 +160,7 @@ public class DocumentLoader {
 
   /** Extract section/title from document content based on file type. */
   private String extractSection(Path filePath, String content) {
-    String fileName = filePath.getFileName().toString().toLowerCase();
+    String fileName = fileName(filePath).toLowerCase(Locale.ROOT);
 
     if (fileName.endsWith(".md") || fileName.endsWith(".markdown")) {
       return extractMarkdownTitle(content);
@@ -161,7 +174,7 @@ public class DocumentLoader {
       return lines[0].trim().substring(0, Math.min(lines[0].trim().length(), 100));
     }
 
-    return removeExtension(filePath.getFileName().toString());
+    return removeExtension(fileName(filePath));
   }
 
   /** Extract title from Markdown content (first header). */
@@ -199,7 +212,7 @@ public class DocumentLoader {
   private String getFileExtension(String fileName) {
     int lastDot = fileName.lastIndexOf('.');
     if (lastDot > 0 && lastDot < fileName.length() - 1) {
-      return fileName.substring(lastDot + 1).toLowerCase();
+      return fileName.substring(lastDot + 1).toLowerCase(Locale.ROOT);
     }
     return "";
   }

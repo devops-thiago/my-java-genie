@@ -37,10 +37,10 @@ class GeminiProviderEndToEndTest {
 
   @Container
   static GenericContainer<?> chromaContainer =
-      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:0.4.15"))
+      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:1.5.9"))
           .withExposedPorts(8000)
           .waitingFor(
-              Wait.forHttp("/api/v1/heartbeat")
+              Wait.forHttp("/api/v2/heartbeat")
                   .forPort(8000)
                   .forStatusCode(200)
                   .withStartupTimeout(Duration.ofSeconds(60)));
@@ -137,23 +137,15 @@ class GeminiProviderEndToEndTest {
   @Order(3)
   void testTokenUsageTrackingWithGemini() {
     // Create a mock Gemini configuration for testing
-    ModelConfig config = new ModelConfig();
-    config.setProvider("gemini");
-    config.setTemperature(0.7);
-    config.setMaxTokens(500);
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-pro", "test-api-key", 30);
 
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setLocation("us-central1");
-    geminiSettings.setModelName("gemini-pro");
-    geminiSettings.setApiKey("test-api-key");
-    geminiSettings.setTimeoutSeconds(30);
-
-    config.setGemini(geminiSettings);
+    ModelConfig config = new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
     // Verify configuration supports token tracking
-    assertThat(config.getGemini()).isNotNull();
-    assertThat(config.getMaxTokens()).isEqualTo(500);
+    assertThat(config.gemini()).isNotNull();
+    assertThat(config.maxTokens()).isEqualTo(500);
 
     // In a real scenario with valid credentials, token usage would be tracked:
     // - promptTokenCount from Gemini response
@@ -191,22 +183,14 @@ class GeminiProviderEndToEndTest {
   @Order(5)
   void testRetryLogicWithExponentialBackoff() {
     // Create configuration with retry settings
-    ModelConfig config = new ModelConfig();
-    config.setProvider("gemini");
-    config.setTemperature(0.7);
-    config.setMaxTokens(500);
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-pro", "test-api-key", 30);
 
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setLocation("us-central1");
-    geminiSettings.setModelName("gemini-pro");
-    geminiSettings.setApiKey("test-api-key");
-    geminiSettings.setTimeoutSeconds(30);
-
-    config.setGemini(geminiSettings);
+    ModelConfig config = new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
     // Verify retry configuration
-    assertThat(config.getGemini().getTimeoutSeconds()).isEqualTo(30);
+    assertThat(config.gemini().timeoutSeconds()).isEqualTo(30);
 
     // In a real scenario:
     // 1. First attempt fails with 503 (Service Unavailable)
@@ -224,38 +208,27 @@ class GeminiProviderEndToEndTest {
     // This test verifies that Gemini can be used interchangeably with other providers
 
     // Test 1: Verify Gemini configuration
-    ModelConfig geminiConfig = new ModelConfig();
-    geminiConfig.setProvider("gemini");
-    geminiConfig.setTemperature(0.7);
-    geminiConfig.setMaxTokens(500);
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-pro", "test-key", null);
 
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setLocation("us-central1");
-    geminiSettings.setModelName("gemini-pro");
-    geminiSettings.setApiKey("test-key");
+    ModelConfig geminiConfig =
+        new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
-    geminiConfig.setGemini(geminiSettings);
-
-    assertThat(geminiConfig.getProvider()).isEqualTo("gemini");
-    assertThat(geminiConfig.getTemperature()).isEqualTo(0.7);
-    assertThat(geminiConfig.getMaxTokens()).isEqualTo(500);
+    assertThat(geminiConfig.provider()).isEqualTo("gemini");
+    assertThat(geminiConfig.temperature()).isEqualTo(0.7);
+    assertThat(geminiConfig.maxTokens()).isEqualTo(500);
 
     // Test 2: Verify OpenAI configuration for comparison
-    ModelConfig openaiConfig = new ModelConfig();
-    openaiConfig.setProvider("openai");
-    openaiConfig.setTemperature(0.7);
-    openaiConfig.setMaxTokens(500);
+    ModelConfig.OpenAISettings openaiSettings =
+        new ModelConfig.OpenAISettings("test-key", "gpt-4", null, null);
 
-    ModelConfig.OpenAISettings openaiSettings = new ModelConfig.OpenAISettings();
-    openaiSettings.setApiKey("test-key");
-    openaiSettings.setModelName("gpt-4");
-
-    openaiConfig.setOpenai(openaiSettings);
+    ModelConfig openaiConfig =
+        new ModelConfig("openai", null, openaiSettings, null, null, 0.7, 500);
 
     // Both configurations should have same temperature and maxTokens
-    assertThat(geminiConfig.getTemperature()).isEqualTo(openaiConfig.getTemperature());
-    assertThat(geminiConfig.getMaxTokens()).isEqualTo(openaiConfig.getMaxTokens());
+    assertThat(geminiConfig.temperature()).isEqualTo(openaiConfig.temperature());
+    assertThat(geminiConfig.maxTokens()).isEqualTo(openaiConfig.maxTokens());
 
     // Response structure should be similar:
     // - Both return answer text
@@ -334,46 +307,34 @@ class GeminiProviderEndToEndTest {
   @Order(10)
   void testDifferentGeminiModelVariants() {
     // Test gemini-pro configuration
-    ModelConfig geminiProConfig = new ModelConfig();
-    geminiProConfig.setProvider("gemini");
+    ModelConfig.GeminiSettings geminiProSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-pro", "test-key", null);
 
-    ModelConfig.GeminiSettings geminiProSettings = new ModelConfig.GeminiSettings();
-    geminiProSettings.setProjectId("test-project");
-    geminiProSettings.setLocation("us-central1");
-    geminiProSettings.setModelName("gemini-pro");
-    geminiProSettings.setApiKey("test-key");
+    ModelConfig geminiProConfig =
+        new ModelConfig("gemini", null, null, null, geminiProSettings, null, null);
 
-    geminiProConfig.setGemini(geminiProSettings);
-
-    assertThat(geminiProConfig.getGemini().getModelName()).isEqualTo("gemini-pro");
+    assertThat(geminiProConfig.gemini().modelName()).isEqualTo("gemini-pro");
 
     // Test gemini-1.5-pro configuration
-    ModelConfig gemini15ProConfig = new ModelConfig();
-    gemini15ProConfig.setProvider("gemini");
+    ModelConfig.GeminiSettings gemini15ProSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-1.5-pro", "test-key", null);
 
-    ModelConfig.GeminiSettings gemini15ProSettings = new ModelConfig.GeminiSettings();
-    gemini15ProSettings.setProjectId("test-project");
-    gemini15ProSettings.setLocation("us-central1");
-    gemini15ProSettings.setModelName("gemini-1.5-pro");
-    gemini15ProSettings.setApiKey("test-key");
+    ModelConfig gemini15ProConfig =
+        new ModelConfig("gemini", null, null, null, gemini15ProSettings, null, null);
 
-    gemini15ProConfig.setGemini(gemini15ProSettings);
-
-    assertThat(gemini15ProConfig.getGemini().getModelName()).isEqualTo("gemini-1.5-pro");
+    assertThat(gemini15ProConfig.gemini().modelName()).isEqualTo("gemini-1.5-pro");
 
     // Test gemini-1.5-flash configuration (faster, cost-effective)
-    ModelConfig geminiFlashConfig = new ModelConfig();
-    geminiFlashConfig.setProvider("gemini");
+    ModelConfig.GeminiSettings geminiFlashSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-1.5-flash", "test-key", null);
 
-    ModelConfig.GeminiSettings geminiFlashSettings = new ModelConfig.GeminiSettings();
-    geminiFlashSettings.setProjectId("test-project");
-    geminiFlashSettings.setLocation("us-central1");
-    geminiFlashSettings.setModelName("gemini-1.5-flash");
-    geminiFlashSettings.setApiKey("test-key");
+    ModelConfig geminiFlashConfig =
+        new ModelConfig("gemini", null, null, null, geminiFlashSettings, null, null);
 
-    geminiFlashConfig.setGemini(geminiFlashSettings);
-
-    assertThat(geminiFlashConfig.getGemini().getModelName()).isEqualTo("gemini-1.5-flash");
+    assertThat(geminiFlashConfig.gemini().modelName()).isEqualTo("gemini-1.5-flash");
   }
 
   /** Test Requirement 10.5: Test safety filter error handling */

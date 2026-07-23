@@ -25,6 +25,25 @@ public class DocumentMetadata {
     this.additionalProperties = new HashMap<>();
   }
 
+  /** Copy constructor used for defensive copies. */
+  public DocumentMetadata(DocumentMetadata other) {
+    this.sourceFile = other.sourceFile;
+    this.section = other.section;
+    this.chunkIndex = other.chunkIndex;
+    this.additionalProperties =
+        other.additionalProperties == null
+            ? new HashMap<>()
+            : new HashMap<>(other.additionalProperties);
+  }
+
+  /**
+   * Returns a defensive copy of the given metadata, or {@code null} if {@code metadata} is {@code
+   * null}.
+   */
+  public static DocumentMetadata copyOf(DocumentMetadata metadata) {
+    return metadata == null ? null : new DocumentMetadata(metadata);
+  }
+
   public String getSourceFile() {
     return sourceFile;
   }
@@ -50,11 +69,12 @@ public class DocumentMetadata {
   }
 
   public Map<String, String> getAdditionalProperties() {
-    return additionalProperties;
+    return additionalProperties == null ? null : new HashMap<>(additionalProperties);
   }
 
   public void setAdditionalProperties(Map<String, String> additionalProperties) {
-    this.additionalProperties = additionalProperties;
+    this.additionalProperties =
+        additionalProperties == null ? new HashMap<>() : new HashMap<>(additionalProperties);
   }
 
   public void addProperty(String key, String value) {

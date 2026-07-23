@@ -1,9 +1,11 @@
 package br.com.arquivolivre.myjavagenie.service;
 
 import br.com.arquivolivre.myjavagenie.model.TokenUsageMetrics;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,7 +36,8 @@ public class TokenUsageTracker {
    */
   public void recordTokenUsage(String query, TokenUsageMetrics metrics) {
     if (metrics == null) {
-      logger.warn("Attempted to record null token metrics for query: {}", query);
+      logger.warn(
+          "Attempted to record null token metrics for query: {}", LogSanitizer.sanitize(query));
       return;
     }
 
@@ -53,11 +56,11 @@ public class TokenUsageTracker {
     // Log token usage with structured format for metrics analysis
     logger.info(
         "TOKEN_METRICS | query=\"{}\" | promptTokens={} | completionTokens={} | totalTokens={} | timestamp={}",
-        truncateQuery(query),
-        metrics.getPromptTokens(),
-        metrics.getCompletionTokens(),
-        metrics.getTotalTokens(),
-        record.timestamp());
+        LogSanitizer.sanitize(truncateQuery(query)),
+        LogSanitizer.sanitize(metrics.getPromptTokens()),
+        LogSanitizer.sanitize(metrics.getCompletionTokens()),
+        LogSanitizer.sanitize(metrics.getTotalTokens()),
+        LogSanitizer.sanitize(record.timestamp()));
   }
 
   /**
@@ -133,16 +136,16 @@ public class TokenUsageTracker {
     logger.info(
         "TOKEN_SUMMARY | queries={} | totalTokens={} | avgTokensPerQuery={} | "
             + "promptTokens={} | completionTokens={}",
-        stats.queryCount(),
-        stats.totalTokens(),
-        String.format("%.2f", stats.averageTokensPerQuery()),
-        stats.totalPromptTokens(),
-        stats.totalCompletionTokens());
+        LogSanitizer.sanitize(stats.queryCount()),
+        LogSanitizer.sanitize(stats.totalTokens()),
+        LogSanitizer.sanitize(String.format("%.2f", stats.averageTokensPerQuery())),
+        LogSanitizer.sanitize(stats.totalPromptTokens()),
+        LogSanitizer.sanitize(stats.totalCompletionTokens()));
   }
 
   private String generateQueryKey(String query) {
     // Normalize query for grouping similar queries
-    return query.toLowerCase().trim();
+    return query.toLowerCase(Locale.ROOT).trim();
   }
 
   private String truncateQuery(String query) {
@@ -154,6 +157,16 @@ public class TokenUsageTracker {
 
   /** Record of token usage for a specific query execution. */
   public record QueryTokenRecord(String query, TokenUsageMetrics metrics, LocalDateTime timestamp) {
+
+    /** Defensively copies the mutable metrics so the record cannot be mutated through it. */
+    public QueryTokenRecord {
+      metrics = TokenUsageMetrics.copyOf(metrics);
+    }
+
+    @Override
+    public TokenUsageMetrics metrics() {
+      return TokenUsageMetrics.copyOf(metrics);
+    }
 
     @Override
     public String toString() {

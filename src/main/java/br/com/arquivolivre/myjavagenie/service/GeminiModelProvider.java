@@ -6,6 +6,7 @@ import br.com.arquivolivre.myjavagenie.exception.ModelInvocationException;
 import br.com.arquivolivre.myjavagenie.exception.ModelTimeoutException;
 import br.com.arquivolivre.myjavagenie.model.GenerationRequest;
 import br.com.arquivolivre.myjavagenie.model.GenerationResponse;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vertexai.VertexAI;
 import com.google.cloud.vertexai.api.GenerateContentResponse;
@@ -14,6 +15,7 @@ import com.google.cloud.vertexai.generativeai.ResponseHandler;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * Language model provider for Google Gemini API via Vertex AI. Implements retry logic with
  * exponential backoff and handles Gemini-specific errors.
  */
-public class GeminiModelProvider implements LanguageModelProvider {
+public final class GeminiModelProvider implements LanguageModelProvider {
 
   private static final Logger logger = LoggerFactory.getLogger(GeminiModelProvider.class);
   private static final int MAX_RETRIES = 3;
@@ -41,33 +43,33 @@ public class GeminiModelProvider implements LanguageModelProvider {
    * @param config the model configuration
    */
   public GeminiModelProvider(ModelConfig config) {
-    ModelConfig.GeminiSettings settings = config.getGemini();
+    ModelConfig.GeminiSettings settings = config.gemini();
     if (settings == null) {
       throw new ModelInitializationException("Gemini settings are required");
     }
 
-    if (settings.getLocation() == null || settings.getLocation().isEmpty()) {
+    if (settings.location() == null || settings.location().isEmpty()) {
       throw new ModelInitializationException("Gemini location is required");
     }
 
-    if (settings.getModelName() == null || settings.getModelName().isEmpty()) {
+    if (settings.modelName() == null || settings.modelName().isEmpty()) {
       throw new ModelInitializationException("Gemini model name is required");
     }
 
-    this.modelName = settings.getModelName();
-    this.timeoutSeconds = settings.getTimeoutSeconds() != null ? settings.getTimeoutSeconds() : 30;
-    this.temperature = config.getTemperature();
-    this.maxTokens = config.getMaxTokens();
+    this.modelName = settings.modelName();
+    this.timeoutSeconds = settings.timeoutSeconds() != null ? settings.timeoutSeconds() : 30;
+    this.temperature = config.temperature();
+    this.maxTokens = config.maxTokens();
 
     logger.info(
         "Initializing Gemini model provider: {} in location: {}",
-        modelName,
-        settings.getLocation());
+        LogSanitizer.sanitize(modelName),
+        LogSanitizer.sanitize(settings.location()));
 
     try {
       // Initialize Vertex AI client
-      String projectId = settings.getProjectId();
-      String location = settings.getLocation();
+      String projectId = settings.projectId();
+      String location = settings.location();
 
       if (projectId == null || projectId.isEmpty()) {
         // Try to get from environment
@@ -79,7 +81,7 @@ public class GeminiModelProvider implements LanguageModelProvider {
       }
 
       // Initialize VertexAI with credentials
-      if (settings.getApiKey() != null && !settings.getApiKey().isEmpty()) {
+      if (settings.apiKey() != null && !settings.apiKey().isEmpty()) {
         // Use API key authentication (for testing/development)
         logger.info("Using API key authentication for Gemini");
         GoogleCredentials credentials =
@@ -87,7 +89,7 @@ public class GeminiModelProvider implements LanguageModelProvider {
                 new ByteArrayInputStream(
                     String.format(
                             "{\"type\":\"authorized_user\",\"client_id\":\"\",\"client_secret\":\"\",\"refresh_token\":\"%s\"}",
-                            settings.getApiKey())
+                            settings.apiKey())
                         .getBytes(StandardCharsets.UTF_8)));
         this.vertexAI =
             new VertexAI.Builder()
@@ -116,7 +118,7 @@ public class GeminiModelProvider implements LanguageModelProvider {
   public GenerationResponse generate(GenerationRequest request) {
     logger.debug(
         "Generating response for prompt with {} characters",
-        request.getPrompt() != null ? request.getPrompt().length() : 0);
+        LogSanitizer.sanitize(request.getPrompt() != null ? request.getPrompt().length() : 0));
 
     int attempt = 0;
     Exception lastException = null;
@@ -152,10 +154,10 @@ public class GeminiModelProvider implements LanguageModelProvider {
 
         logger.info(
             "Gemini token usage - prompt: {}, completion: {}, total: {}",
-            promptTokens,
-            completionTokens,
-            totalTokens);
-        logger.debug("Generation completed in {}ms", duration);
+            LogSanitizer.sanitize(promptTokens),
+            LogSanitizer.sanitize(completionTokens),
+            LogSanitizer.sanitize(totalTokens));
+        logger.debug("Generation completed in {}ms", LogSanitizer.sanitize(duration));
 
         return new GenerationResponse(responseText, promptTokens, completionTokens, totalTokens);
 
@@ -165,22 +167,24 @@ public class GeminiModelProvider implements LanguageModelProvider {
 
         // Handle specific Gemini errors
         if (isTimeoutException(e)) {
-          logger.error("Model invocation timed out after {} seconds", timeoutSeconds);
+          logger.error(
+              "Model invocation timed out after {} seconds", LogSanitizer.sanitize(timeoutSeconds));
           throw new ModelTimeoutException(
               "Model generation timed out after " + timeoutSeconds + " seconds", e);
         }
 
         if (isRateLimitException(e)) {
-          logger.warn("Rate limit exceeded (attempt {}/{})", attempt, MAX_RETRIES);
+          logger.warn(
+              "Rate limit exceeded (attempt {}/{})", LogSanitizer.sanitize(attempt), MAX_RETRIES);
         }
 
         if (isSafetyFilterException(e)) {
-          logger.error("Safety filter triggered: {}", e.getMessage());
+          logger.error("Safety filter triggered: {}", LogSanitizer.sanitize(e.getMessage()));
           throw new ModelInvocationException("Content was blocked by Gemini safety filters", e);
         }
 
         if (isQuotaExceededException(e)) {
-          logger.error("Quota exceeded: {}", e.getMessage());
+          logger.error("Quota exceeded: {}", LogSanitizer.sanitize(e.getMessage()));
           throw new ModelInvocationException("Gemini API quota exceeded", e);
         }
 
@@ -189,10 +193,10 @@ public class GeminiModelProvider implements LanguageModelProvider {
           long delay = INITIAL_RETRY_DELAY_MS * (long) Math.pow(2, attempt - 1);
           logger.warn(
               "Model invocation failed (attempt {}/{}), retrying in {}ms: {}",
-              attempt,
+              LogSanitizer.sanitize(attempt),
               MAX_RETRIES,
-              delay,
-              e.getMessage());
+              LogSanitizer.sanitize(delay),
+              LogSanitizer.sanitize(e.getMessage()));
 
           try {
             TimeUnit.MILLISECONDS.sleep(delay);
@@ -218,7 +222,7 @@ public class GeminiModelProvider implements LanguageModelProvider {
       String text = ResponseHandler.getText(response);
       return text != null;
     } catch (Exception e) {
-      logger.warn("Model availability check failed: {}", e.getMessage());
+      logger.warn("Model availability check failed: {}", LogSanitizer.sanitize(e.getMessage()));
       return false;
     }
   }
@@ -237,8 +241,9 @@ public class GeminiModelProvider implements LanguageModelProvider {
   private boolean isTimeoutException(Exception e) {
     return e instanceof java.util.concurrent.TimeoutException
         || e.getCause() instanceof java.util.concurrent.TimeoutException
-        || (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"))
-        || (e.getMessage() != null && e.getMessage().toLowerCase().contains("deadline exceeded"));
+        || (e.getMessage() != null && e.getMessage().toLowerCase(Locale.ROOT).contains("timeout"))
+        || (e.getMessage() != null
+            && e.getMessage().toLowerCase(Locale.ROOT).contains("deadline exceeded"));
   }
 
   /**
@@ -249,9 +254,9 @@ public class GeminiModelProvider implements LanguageModelProvider {
    */
   private boolean isRateLimitException(Exception e) {
     return e.getMessage() != null
-        && (e.getMessage().toLowerCase().contains("rate limit")
-            || e.getMessage().toLowerCase().contains("429")
-            || e.getMessage().toLowerCase().contains("resource exhausted"));
+        && (e.getMessage().toLowerCase(Locale.ROOT).contains("rate limit")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("429")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("resource exhausted"));
   }
 
   /**
@@ -262,9 +267,9 @@ public class GeminiModelProvider implements LanguageModelProvider {
    */
   private boolean isSafetyFilterException(Exception e) {
     return e.getMessage() != null
-        && (e.getMessage().toLowerCase().contains("safety")
-            || e.getMessage().toLowerCase().contains("blocked")
-            || e.getMessage().toLowerCase().contains("content filter"));
+        && (e.getMessage().toLowerCase(Locale.ROOT).contains("safety")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("blocked")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("content filter"));
   }
 
   /**
@@ -275,8 +280,8 @@ public class GeminiModelProvider implements LanguageModelProvider {
    */
   private boolean isQuotaExceededException(Exception e) {
     return e.getMessage() != null
-        && (e.getMessage().toLowerCase().contains("quota")
-            || e.getMessage().toLowerCase().contains("limit exceeded"));
+        && (e.getMessage().toLowerCase(Locale.ROOT).contains("quota")
+            || e.getMessage().toLowerCase(Locale.ROOT).contains("limit exceeded"));
   }
 
   /** Closes the Vertex AI client and releases resources. */
@@ -287,7 +292,7 @@ public class GeminiModelProvider implements LanguageModelProvider {
         logger.info("Gemini model provider closed");
       }
     } catch (Exception e) {
-      logger.warn("Error closing Gemini model provider: {}", e.getMessage());
+      logger.warn("Error closing Gemini model provider: {}", LogSanitizer.sanitize(e.getMessage()));
     }
   }
 }

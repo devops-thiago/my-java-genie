@@ -14,7 +14,7 @@ public class Document {
 
   public Document(String content, DocumentMetadata metadata) {
     this.content = content;
-    this.metadata = metadata;
+    this.metadata = DocumentMetadata.copyOf(metadata);
   }
 
   public String getContent() {
@@ -26,11 +26,11 @@ public class Document {
   }
 
   public DocumentMetadata getMetadata() {
-    return metadata;
+    return DocumentMetadata.copyOf(metadata);
   }
 
   public void setMetadata(DocumentMetadata metadata) {
-    this.metadata = metadata;
+    this.metadata = DocumentMetadata.copyOf(metadata);
   }
 
   @Override

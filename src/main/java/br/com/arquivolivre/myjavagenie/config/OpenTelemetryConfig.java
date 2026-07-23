@@ -1,5 +1,6 @@
 package br.com.arquivolivre.myjavagenie.config;
 
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
@@ -25,9 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
 
 /**
  * Configuration class for OpenTelemetry observability. Sets up traces, metrics, and logs exporters
@@ -35,6 +37,7 @@ import org.springframework.stereotype.Component;
  */
 @Configuration
 @ConditionalOnProperty(name = "opentelemetry.enabled", havingValue = "true", matchIfMissing = false)
+@EnableConfigurationProperties(OpenTelemetryConfig.OpenTelemetryProperties.class)
 public class OpenTelemetryConfig {
 
   private static final Logger logger = LoggerFactory.getLogger(OpenTelemetryConfig.class);
@@ -43,7 +46,9 @@ public class OpenTelemetryConfig {
 
   public OpenTelemetryConfig(OpenTelemetryProperties properties) {
     this.properties = properties;
-    logger.info("Initializing OpenTelemetry with service name: {}", properties.getServiceName());
+    logger.info(
+        "Initializing OpenTelemetry with service name: {}",
+        LogSanitizer.sanitize(properties.serviceName()));
   }
 
   /** Creates the OpenTelemetry SDK instance with configured exporters. */
@@ -54,35 +59,38 @@ public class OpenTelemetryConfig {
             .merge(
                 Resource.create(
                     Attributes.builder()
-                        .put(ResourceAttributes.SERVICE_NAME, properties.getServiceName())
-                        .put(ResourceAttributes.SERVICE_VERSION, properties.getServiceVersion())
-                        .put(ResourceAttributes.DEPLOYMENT_ENVIRONMENT, properties.getEnvironment())
+                        .put(ResourceAttributes.SERVICE_NAME, properties.serviceName())
+                        .put(ResourceAttributes.SERVICE_VERSION, properties.serviceVersion())
+                        .put(ResourceAttributes.DEPLOYMENT_ENVIRONMENT, properties.environment())
                         .build()));
 
     var sdkBuilder = OpenTelemetrySdk.builder();
 
     // Configure Tracer Provider
-    if (properties.getTraces().isEnabled()) {
+    if (properties.traces().enabled()) {
       SdkTracerProvider tracerProvider = configurTracerProvider(resource);
       sdkBuilder.setTracerProvider(tracerProvider);
       logger.info(
-          "OpenTelemetry traces enabled with endpoint: {}", properties.getTraces().getEndpoint());
+          "OpenTelemetry traces enabled with endpoint: {}",
+          LogSanitizer.sanitize(properties.traces().endpoint()));
     }
 
     // Configure Meter Provider
-    if (properties.getMetrics().isEnabled()) {
+    if (properties.metrics().enabled()) {
       SdkMeterProvider meterProvider = configureMeterProvider(resource);
       sdkBuilder.setMeterProvider(meterProvider);
       logger.info(
-          "OpenTelemetry metrics enabled with endpoint: {}", properties.getMetrics().getEndpoint());
+          "OpenTelemetry metrics enabled with endpoint: {}",
+          LogSanitizer.sanitize(properties.metrics().endpoint()));
     }
 
     // Configure Logger Provider
-    if (properties.getLogs().isEnabled()) {
+    if (properties.logs().enabled()) {
       SdkLoggerProvider loggerProvider = configureLoggerProvider(resource);
       sdkBuilder.setLoggerProvider(loggerProvider);
       logger.info(
-          "OpenTelemetry logs enabled with endpoint: {}", properties.getLogs().getEndpoint());
+          "OpenTelemetry logs enabled with endpoint: {}",
+          LogSanitizer.sanitize(properties.logs().endpoint()));
     }
 
     // Build a local SDK bean. Register as global only when nothing else (e.g. the
@@ -94,7 +102,7 @@ public class OpenTelemetryConfig {
     } catch (IllegalStateException alreadyRegistered) {
       logger.warn(
           "Global OpenTelemetry already registered; using SDK as Spring bean only: {}",
-          alreadyRegistered.getMessage());
+          LogSanitizer.sanitize(alreadyRegistered.getMessage()));
     }
 
     logger.info("OpenTelemetry SDK initialized successfully");
@@ -106,7 +114,7 @@ public class OpenTelemetryConfig {
     try {
       OtlpGrpcSpanExporter spanExporter =
           OtlpGrpcSpanExporter.builder()
-              .setEndpoint(properties.getTraces().getEndpoint())
+              .setEndpoint(properties.traces().endpoint())
               .setTimeout(10, TimeUnit.SECONDS)
               .build();
 
@@ -116,11 +124,12 @@ public class OpenTelemetryConfig {
               BatchSpanProcessor.builder(spanExporter)
                   .setScheduleDelay(Duration.ofSeconds(5))
                   .build())
-          .setSampler(Sampler.traceIdRatioBased(properties.getTraces().getSamplingRate()))
+          .setSampler(Sampler.traceIdRatioBased(properties.traces().samplingRate()))
           .build();
     } catch (Exception e) {
       logger.error(
-          "Failed to configure tracer provider, traces will not be exported: {}", e.getMessage());
+          "Failed to configure tracer provider, traces will not be exported: {}",
+          LogSanitizer.sanitize(e.getMessage()));
       // Return a no-op tracer provider to allow application to continue
       return SdkTracerProvider.builder()
           .setResource(resource)
@@ -134,7 +143,7 @@ public class OpenTelemetryConfig {
     try {
       OtlpGrpcMetricExporter metricExporter =
           OtlpGrpcMetricExporter.builder()
-              .setEndpoint(properties.getMetrics().getEndpoint())
+              .setEndpoint(properties.metrics().endpoint())
               .setTimeout(10, TimeUnit.SECONDS)
               .build();
 
@@ -142,12 +151,13 @@ public class OpenTelemetryConfig {
           .setResource(resource)
           .registerMetricReader(
               PeriodicMetricReader.builder(metricExporter)
-                  .setInterval(Duration.ofMillis(properties.getMetrics().getExportIntervalMillis()))
+                  .setInterval(Duration.ofMillis(properties.metrics().exportIntervalMillis()))
                   .build())
           .build();
     } catch (Exception e) {
       logger.error(
-          "Failed to configure meter provider, metrics will not be exported: {}", e.getMessage());
+          "Failed to configure meter provider, metrics will not be exported: {}",
+          LogSanitizer.sanitize(e.getMessage()));
       // Return a no-op meter provider to allow application to continue
       return SdkMeterProvider.builder().setResource(resource).build();
     }
@@ -158,7 +168,7 @@ public class OpenTelemetryConfig {
     try {
       OtlpGrpcLogRecordExporter logExporter =
           OtlpGrpcLogRecordExporter.builder()
-              .setEndpoint(properties.getLogs().getEndpoint())
+              .setEndpoint(properties.logs().endpoint())
               .setTimeout(10, TimeUnit.SECONDS)
               .build();
 
@@ -171,7 +181,8 @@ public class OpenTelemetryConfig {
           .build();
     } catch (Exception e) {
       logger.error(
-          "Failed to configure logger provider, logs will not be exported: {}", e.getMessage());
+          "Failed to configure logger provider, logs will not be exported: {}",
+          LogSanitizer.sanitize(e.getMessage()));
       // Return a no-op logger provider to allow application to continue
       return SdkLoggerProvider.builder().setResource(resource).build();
     }
@@ -180,190 +191,47 @@ public class OpenTelemetryConfig {
   /** Creates a Tracer bean for manual instrumentation. */
   @Bean
   public Tracer tracer(OpenTelemetry openTelemetry) {
-    return openTelemetry.getTracer(properties.getServiceName());
+    return openTelemetry.getTracer(properties.serviceName());
   }
 
   /** Creates a Meter bean for custom metrics. */
   @Bean
   public Meter meter(OpenTelemetry openTelemetry) {
-    return openTelemetry.getMeter(properties.getServiceName());
+    return openTelemetry.getMeter(properties.serviceName());
   }
 
-  /** Configuration properties for OpenTelemetry. */
-  @Component
+  /**
+   * Immutable configuration properties for OpenTelemetry. Populated through Spring Boot constructor
+   * binding, falling back to the declared defaults when properties are absent.
+   */
   @ConfigurationProperties(prefix = "opentelemetry")
-  public static class OpenTelemetryProperties {
-    private boolean enabled = true;
-    private String serviceName = "java-rag-system";
-    private String serviceVersion = "1.0.0";
-    private String environment = "development";
-    private TracesConfig traces = new TracesConfig();
-    private MetricsConfig metrics = new MetricsConfig();
-    private LogsConfig logs = new LogsConfig();
+  public record OpenTelemetryProperties(
+      @DefaultValue("true") boolean enabled,
+      @DefaultValue("java-rag-system") String serviceName,
+      @DefaultValue("1.0.0") String serviceVersion,
+      @DefaultValue("development") String environment,
+      @DefaultValue TracesConfig traces,
+      @DefaultValue MetricsConfig metrics,
+      @DefaultValue LogsConfig logs) {
 
-    // Getters and setters
-    public boolean isEnabled() {
-      return enabled;
-    }
+    /** Trace exporter configuration. */
+    public record TracesConfig(
+        @DefaultValue("true") boolean enabled,
+        @DefaultValue("otlp") String exporter,
+        @DefaultValue("http://localhost:4317") String endpoint,
+        @DefaultValue("1.0") double samplingRate) {}
 
-    public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-    }
+    /** Metric exporter configuration. */
+    public record MetricsConfig(
+        @DefaultValue("true") boolean enabled,
+        @DefaultValue("otlp") String exporter,
+        @DefaultValue("http://localhost:4317") String endpoint,
+        @DefaultValue("60000") long exportIntervalMillis) {}
 
-    public String getServiceName() {
-      return serviceName;
-    }
-
-    public void setServiceName(String serviceName) {
-      this.serviceName = serviceName;
-    }
-
-    public String getServiceVersion() {
-      return serviceVersion;
-    }
-
-    public void setServiceVersion(String serviceVersion) {
-      this.serviceVersion = serviceVersion;
-    }
-
-    public String getEnvironment() {
-      return environment;
-    }
-
-    public void setEnvironment(String environment) {
-      this.environment = environment;
-    }
-
-    public TracesConfig getTraces() {
-      return traces;
-    }
-
-    public void setTraces(TracesConfig traces) {
-      this.traces = traces;
-    }
-
-    public MetricsConfig getMetrics() {
-      return metrics;
-    }
-
-    public void setMetrics(MetricsConfig metrics) {
-      this.metrics = metrics;
-    }
-
-    public LogsConfig getLogs() {
-      return logs;
-    }
-
-    public void setLogs(LogsConfig logs) {
-      this.logs = logs;
-    }
-
-    public static class TracesConfig {
-      private boolean enabled = true;
-      private String exporter = "otlp";
-      private String endpoint = "http://localhost:4317";
-      private double samplingRate = 1.0;
-
-      public boolean isEnabled() {
-        return enabled;
-      }
-
-      public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-      }
-
-      public String getExporter() {
-        return exporter;
-      }
-
-      public void setExporter(String exporter) {
-        this.exporter = exporter;
-      }
-
-      public String getEndpoint() {
-        return endpoint;
-      }
-
-      public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
-      }
-
-      public double getSamplingRate() {
-        return samplingRate;
-      }
-
-      public void setSamplingRate(double samplingRate) {
-        this.samplingRate = samplingRate;
-      }
-    }
-
-    public static class MetricsConfig {
-      private boolean enabled = true;
-      private String exporter = "otlp";
-      private String endpoint = "http://localhost:4317";
-      private long exportIntervalMillis = 60000;
-
-      public boolean isEnabled() {
-        return enabled;
-      }
-
-      public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-      }
-
-      public String getExporter() {
-        return exporter;
-      }
-
-      public void setExporter(String exporter) {
-        this.exporter = exporter;
-      }
-
-      public String getEndpoint() {
-        return endpoint;
-      }
-
-      public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
-      }
-
-      public long getExportIntervalMillis() {
-        return exportIntervalMillis;
-      }
-
-      public void setExportIntervalMillis(long exportIntervalMillis) {
-        this.exportIntervalMillis = exportIntervalMillis;
-      }
-    }
-
-    public static class LogsConfig {
-      private boolean enabled = true;
-      private String exporter = "otlp";
-      private String endpoint = "http://localhost:4317";
-
-      public boolean isEnabled() {
-        return enabled;
-      }
-
-      public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-      }
-
-      public String getExporter() {
-        return exporter;
-      }
-
-      public void setExporter(String exporter) {
-        this.exporter = exporter;
-      }
-
-      public String getEndpoint() {
-        return endpoint;
-      }
-
-      public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
-      }
-    }
+    /** Log exporter configuration. */
+    public record LogsConfig(
+        @DefaultValue("true") boolean enabled,
+        @DefaultValue("otlp") String exporter,
+        @DefaultValue("http://localhost:4317") String endpoint) {}
   }
 }

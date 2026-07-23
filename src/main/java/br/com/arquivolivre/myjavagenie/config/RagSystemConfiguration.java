@@ -3,14 +3,15 @@ package br.com.arquivolivre.myjavagenie.config;
 import br.com.arquivolivre.myjavagenie.repository.VectorRepository;
 import br.com.arquivolivre.myjavagenie.repository.VectorRepositoryFactory;
 import br.com.arquivolivre.myjavagenie.service.*;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 
 /**
  * Main configuration class for the RAG System. Defines all major component beans with proper
@@ -49,7 +50,8 @@ public class RagSystemConfiguration {
   public LanguageModelProvider languageModelProvider(
       LanguageModelFactory languageModelFactory, ModelConfig modelConfig) {
     logger.info(
-        "Initializing LanguageModelProvider bean for provider: {}", modelConfig.getProvider());
+        "Initializing LanguageModelProvider bean for provider: {}",
+        LogSanitizer.sanitize(modelConfig.provider()));
     return languageModelFactory.createProvider(modelConfig);
   }
 
@@ -84,7 +86,9 @@ public class RagSystemConfiguration {
   @Bean
   public VectorRepository vectorRepository(
       VectorRepositoryFactory vectorRepositoryFactory, VectorDbConfig vectorDbConfig) {
-    logger.info("Initializing VectorRepository bean for type: {}", vectorDbConfig.getType());
+    logger.info(
+        "Initializing VectorRepository bean for type: {}",
+        LogSanitizer.sanitize(vectorDbConfig.type()));
     return vectorRepositoryFactory.createRepository(vectorDbConfig);
   }
 
@@ -99,8 +103,8 @@ public class RagSystemConfiguration {
   public DocumentProcessor documentProcessor(IngestionConfig ingestionConfig) {
     logger.info(
         "Initializing DocumentProcessor bean with chunk size: {}, overlap: {}",
-        ingestionConfig.getChunkSize(),
-        ingestionConfig.getChunkOverlap());
+        LogSanitizer.sanitize(ingestionConfig.chunkSize()),
+        LogSanitizer.sanitize(ingestionConfig.chunkOverlap()));
     return new RecursiveCharacterSplitter(ingestionConfig);
   }
 
@@ -125,11 +129,11 @@ public class RagSystemConfiguration {
       VectorRepository vectorRepository,
       EmbeddingModelProvider embeddingModelProvider,
       QueryConfig queryConfig,
-      @Autowired(required = false) Tracer tracer) {
+      @Nullable Tracer tracer) {
     logger.info(
         "Initializing RetrievalEngine bean with max chunks: {}, threshold: {}",
-        queryConfig.getMaxRetrievedChunks(),
-        queryConfig.getSimilarityThreshold());
+        LogSanitizer.sanitize(queryConfig.maxRetrievedChunks()),
+        LogSanitizer.sanitize(queryConfig.similarityThreshold()));
     return new RetrievalEngine(vectorRepository, embeddingModelProvider, queryConfig, tracer);
   }
 

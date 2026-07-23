@@ -6,6 +6,7 @@ import br.com.arquivolivre.myjavagenie.exception.VectorDbQueryException;
 import br.com.arquivolivre.myjavagenie.model.DocumentChunk;
 import br.com.arquivolivre.myjavagenie.model.ScoredDocument;
 import br.com.arquivolivre.myjavagenie.repository.VectorRepository;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,7 +35,7 @@ public class RetrievalEngine {
       VectorRepository vectorRepository,
       EmbeddingModelProvider embeddingModel,
       QueryConfig queryConfig,
-      @Autowired(required = false) Tracer tracer) {
+      @Nullable Tracer tracer) {
     this.vectorRepository = vectorRepository;
     this.embeddingModel = embeddingModel;
     this.queryConfig = queryConfig;
@@ -50,7 +51,7 @@ public class RetrievalEngine {
    * @throws VectorDbQueryException if vector database search fails
    */
   public List<DocumentChunk> retrieveRelevantChunks(String query) {
-    logger.debug("Retrieving relevant chunks for query: {}", query);
+    logger.debug("Retrieving relevant chunks for query: {}", LogSanitizer.sanitize(query));
 
     // Generate embedding for the query with tracing
     Span embedSpan = tracer != null ? tracer.spanBuilder("embed-query").startSpan() : null;
@@ -61,14 +62,16 @@ public class RetrievalEngine {
       }
 
       queryEmbedding = embeddingModel.embed(query);
-      logger.debug("Generated query embedding with {} dimensions", queryEmbedding.length);
+      logger.debug(
+          "Generated query embedding with {} dimensions",
+          LogSanitizer.sanitize(queryEmbedding.length));
 
       if (embedSpan != null) {
         embedSpan.setAttribute("embedding.dimensions", queryEmbedding.length);
         embedSpan.setStatus(StatusCode.OK);
       }
     } catch (Exception e) {
-      logger.error("Failed to generate embedding for query: {}", query, e);
+      logger.error("Failed to generate embedding for query: {}", LogSanitizer.sanitize(query), e);
       if (embedSpan != null) {
         embedSpan.setStatus(StatusCode.ERROR, "Embedding generation failed");
         embedSpan.recordException(e);
@@ -81,10 +84,13 @@ public class RetrievalEngine {
     }
 
     // Perform similarity search with configured parameters
-    int topK = queryConfig.getMaxRetrievedChunks();
-    double threshold = queryConfig.getSimilarityThreshold();
+    int topK = queryConfig.maxRetrievedChunks();
+    double threshold = queryConfig.similarityThreshold();
 
-    logger.debug("Performing similarity search with topK={}, threshold={}", topK, threshold);
+    logger.debug(
+        "Performing similarity search with topK={}, threshold={}",
+        LogSanitizer.sanitize(topK),
+        LogSanitizer.sanitize(threshold));
 
     Span searchSpan = tracer != null ? tracer.spanBuilder("vector-search").startSpan() : null;
     List<ScoredDocument> scoredDocuments;
@@ -121,18 +127,19 @@ public class RetrievalEngine {
 
     logger.debug(
         "Found {} documents above threshold {} (before: {})",
-        filteredDocuments.size(),
-        threshold,
-        scoredDocuments.size());
+        LogSanitizer.sanitize(filteredDocuments.size()),
+        LogSanitizer.sanitize(threshold),
+        LogSanitizer.sanitize(scoredDocuments.size()));
 
     // Limit results to maxRetrievedChunks
     List<DocumentChunk> relevantChunks =
         filteredDocuments.stream()
-            .limit(queryConfig.getMaxRetrievedChunks())
+            .limit(queryConfig.maxRetrievedChunks())
             .map(ScoredDocument::getChunk)
             .collect(Collectors.toList());
 
-    logger.info("Retrieved {} relevant chunks for query", relevantChunks.size());
+    logger.info(
+        "Retrieved {} relevant chunks for query", LogSanitizer.sanitize(relevantChunks.size()));
 
     return relevantChunks;
   }

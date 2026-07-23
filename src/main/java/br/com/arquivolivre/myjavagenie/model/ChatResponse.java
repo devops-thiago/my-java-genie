@@ -1,5 +1,6 @@
 package br.com.arquivolivre.myjavagenie.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Response model for chat interactions. Extends QueryResponse with chat-specific fields. */
@@ -20,9 +21,19 @@ public class ChatResponse {
       long responseTimeMs) {
     this.sessionId = sessionId;
     this.answer = answer;
-    this.sources = sources;
-    this.tokenUsage = tokenUsage;
+    this.sources = sources == null ? null : new ArrayList<>(sources);
+    this.tokenUsage = TokenUsageMetrics.copyOf(tokenUsage);
     this.responseTimeMs = responseTimeMs;
+  }
+
+  /** Copy constructor used for defensive copies. */
+  public ChatResponse(ChatResponse other) {
+    this(other.sessionId, other.answer, other.sources, other.tokenUsage, other.responseTimeMs);
+  }
+
+  /** Returns a defensive copy of the given response, or {@code null} if it is null. */
+  public static ChatResponse copyOf(ChatResponse response) {
+    return response == null ? null : new ChatResponse(response);
   }
 
   public static ChatResponse fromQueryResponse(QueryResponse queryResponse) {
@@ -51,19 +62,19 @@ public class ChatResponse {
   }
 
   public List<SourceReference> getSources() {
-    return sources;
+    return sources == null ? null : new ArrayList<>(sources);
   }
 
   public void setSources(List<SourceReference> sources) {
-    this.sources = sources;
+    this.sources = sources == null ? null : new ArrayList<>(sources);
   }
 
   public TokenUsageMetrics getTokenUsage() {
-    return tokenUsage;
+    return TokenUsageMetrics.copyOf(tokenUsage);
   }
 
   public void setTokenUsage(TokenUsageMetrics tokenUsage) {
-    this.tokenUsage = tokenUsage;
+    this.tokenUsage = TokenUsageMetrics.copyOf(tokenUsage);
   }
 
   public long getResponseTimeMs() {

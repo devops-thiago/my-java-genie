@@ -3,6 +3,7 @@ package br.com.arquivolivre.myjavagenie.controller;
 import br.com.arquivolivre.myjavagenie.config.VectorDbConfig;
 import br.com.arquivolivre.myjavagenie.repository.VectorRepository;
 import br.com.arquivolivre.myjavagenie.service.LanguageModelProvider;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -69,9 +70,9 @@ public class HealthController {
 
     logger.info(
         "Health check completed: status={}, languageModel={}, vectorDb={}",
-        response.getStatus(),
-        languageModelHealth.getStatus(),
-        vectorDbHealth.getStatus());
+        LogSanitizer.sanitize(response.getStatus()),
+        LogSanitizer.sanitize(languageModelHealth.getStatus()),
+        LogSanitizer.sanitize(vectorDbHealth.getStatus()));
 
     return ResponseEntity.status(httpStatus).body(response);
   }
@@ -124,7 +125,7 @@ public class HealthController {
    */
   private ComponentHealth checkVectorDatabase() {
     try {
-      String collectionName = vectorDbConfig.getCollectionName();
+      String collectionName = vectorDbConfig.collectionName();
       boolean exists = vectorRepository.collectionExists(collectionName);
 
       if (exists) {
@@ -133,7 +134,7 @@ public class HealthController {
             true,
             Map.of(
                 "type",
-                vectorDbConfig.getType(),
+                vectorDbConfig.type(),
                 "collection",
                 collectionName,
                 "message",
@@ -144,7 +145,7 @@ public class HealthController {
             false,
             Map.of(
                 "type",
-                vectorDbConfig.getType(),
+                vectorDbConfig.type(),
                 "collection",
                 collectionName,
                 "message",
@@ -157,7 +158,7 @@ public class HealthController {
           false,
           Map.of(
               "type",
-              vectorDbConfig.getType(),
+              vectorDbConfig.type(),
               "message",
               "Error checking vector database: " + e.getMessage()));
     }
@@ -181,11 +182,11 @@ public class HealthController {
     }
 
     public Map<String, ComponentHealth> getComponents() {
-      return components;
+      return components == null ? null : new HashMap<>(components);
     }
 
     public void setComponents(Map<String, ComponentHealth> components) {
-      this.components = components;
+      this.components = components == null ? new HashMap<>() : new HashMap<>(components);
     }
 
     public void addComponent(String name, ComponentHealth health) {
@@ -206,7 +207,7 @@ public class HealthController {
     public ComponentHealth(String status, boolean healthy, Map<String, String> details) {
       this.status = status;
       this.healthy = healthy;
-      this.details = details != null ? details : new HashMap<>();
+      this.details = details != null ? new HashMap<>(details) : new HashMap<>();
     }
 
     public String getStatus() {
@@ -226,11 +227,11 @@ public class HealthController {
     }
 
     public Map<String, String> getDetails() {
-      return details;
+      return details == null ? null : new HashMap<>(details);
     }
 
     public void setDetails(Map<String, String> details) {
-      this.details = details;
+      this.details = details == null ? new HashMap<>() : new HashMap<>(details);
     }
   }
 }

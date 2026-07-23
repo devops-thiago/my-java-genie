@@ -1,14 +1,16 @@
 package br.com.arquivolivre.myjavagenie.service;
 
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,7 +36,7 @@ public class MetricsService {
   private final DoubleHistogram tokensCompletion;
   private final DoubleHistogram tokensCost;
 
-  public MetricsService(@Autowired(required = false) Meter meter) {
+  public MetricsService(@Nullable Meter meter) {
     if (meter == null) {
       logger.warn("Meter not available, metrics will not be recorded");
       this.queryDuration = null;
@@ -129,12 +131,12 @@ public class MetricsService {
     logger.debug(
         "Recorded successful query metrics: provider={}, model={}, duration={}ms, "
             + "promptTokens={}, completionTokens={}, cost=${}",
-        provider,
-        model,
-        durationMs,
-        promptTokens,
-        completionTokens,
-        estimatedCost);
+        LogSanitizer.sanitize(provider),
+        LogSanitizer.sanitize(model),
+        LogSanitizer.sanitize(durationMs),
+        LogSanitizer.sanitize(promptTokens),
+        LogSanitizer.sanitize(completionTokens),
+        LogSanitizer.sanitize(estimatedCost));
   }
 
   /**
@@ -163,10 +165,10 @@ public class MetricsService {
 
     logger.debug(
         "Recorded query error metrics: provider={}, model={}, errorType={}, duration={}ms",
-        provider,
-        model,
-        errorType,
-        durationMs);
+        LogSanitizer.sanitize(provider),
+        LogSanitizer.sanitize(model),
+        LogSanitizer.sanitize(errorType),
+        LogSanitizer.sanitize(durationMs));
   }
 
   /**
@@ -188,7 +190,8 @@ public class MetricsService {
     queryDuration.record(durationMs, attributes);
     queryTotal.add(1, attributes);
 
-    logger.debug("Recorded no results query metrics: duration={}ms", durationMs);
+    logger.debug(
+        "Recorded no results query metrics: duration={}ms", LogSanitizer.sanitize(durationMs));
   }
 
   /**
@@ -206,7 +209,7 @@ public class MetricsService {
     double promptCostPer1k;
     double completionCostPer1k;
 
-    switch (provider.toLowerCase()) {
+    switch (provider.toLowerCase(Locale.ROOT)) {
       case "openai":
         // GPT-4 pricing (approximate)
         promptCostPer1k = 0.03;

@@ -7,12 +7,14 @@ import br.com.arquivolivre.myjavagenie.exception.VectorDbQueryException;
 import br.com.arquivolivre.myjavagenie.model.DocumentChunk;
 import br.com.arquivolivre.myjavagenie.model.DocumentMetadata;
 import br.com.arquivolivre.myjavagenie.model.ScoredDocument;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
+import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * ChromaDB implementation of the VectorRepository interface. Provides vector storage and similarity
  * search using ChromaDB.
  */
-public class ChromaVectorRepository implements VectorRepository {
+public final class ChromaVectorRepository implements VectorRepository {
 
   private static final Logger logger = LoggerFactory.getLogger(ChromaVectorRepository.class);
   private static final int MAX_RETRIES = 2;
@@ -37,30 +39,33 @@ public class ChromaVectorRepository implements VectorRepository {
 
   public ChromaVectorRepository(VectorDbConfig config) {
     this.config = config;
-    this.collectionName = config.getCollectionName();
+    this.collectionName = config.collectionName();
 
     try {
       this.embeddingStore = createEmbeddingStore();
       logger.info(
-          "ChromaDB vector repository initialized successfully for collection: {}", collectionName);
+          "ChromaDB vector repository initialized successfully for collection: {}",
+          LogSanitizer.sanitize(collectionName));
     } catch (Exception e) {
-      throw VectorDbConnectionException.forDatabase("ChromaDB", config.getConnectionUrl(), e);
+      throw VectorDbConnectionException.forDatabase("ChromaDB", config.connectionUrl(), e);
     }
   }
 
   private ChromaEmbeddingStore createEmbeddingStore() {
-    ChromaEmbeddingStore.Builder builder =
-        ChromaEmbeddingStore.builder()
-            .baseUrl(config.getConnectionUrl())
-            .collectionName(collectionName);
+    // Chroma 1.x serves only the v2 API, which is scoped by tenant + database. Fall back to
+    // Chroma's built-in defaults when they are not explicitly configured.
+    VectorDbConfig.ChromaSettings chroma = config.chroma();
+    String tenant = chroma != null && chroma.tenant() != null ? chroma.tenant() : "default_tenant";
+    String database =
+        chroma != null && chroma.database() != null ? chroma.database() : "default_database";
 
-    // Add optional ChromaDB-specific settings if configured
-    if (config.getChroma() != null) {
-      VectorDbConfig.ChromaSettings chromaSettings = config.getChroma();
-      // ChromaDB tenant and database settings can be added here if supported by the client
-    }
-
-    return builder.build();
+    return ChromaEmbeddingStore.builder()
+        .baseUrl(config.connectionUrl())
+        .apiVersion(ChromaApiVersion.V2)
+        .tenantName(tenant)
+        .databaseName(database)
+        .collectionName(collectionName)
+        .build();
   }
 
   @Override
@@ -75,7 +80,7 @@ public class ChromaVectorRepository implements VectorRepository {
           Embedding embeddingObj = new Embedding(embedding);
 
           embeddingStore.add(embeddingObj, segment);
-          logger.debug("Stored chunk with ID: {}", chunk.getId());
+          logger.debug("Stored chunk with ID: {}", LogSanitizer.sanitize(chunk.getId()));
           return null;
         },
         "store");
@@ -107,7 +112,7 @@ public class ChromaVectorRepository implements VectorRepository {
               embeddings.stream().map(Embedding::new).collect(Collectors.toList());
 
           embeddingStore.addAll(embeddingObjs, segments);
-          logger.info("Stored batch of {} chunks", chunks.size());
+          logger.info("Stored batch of {} chunks", LogSanitizer.sanitize(chunks.size()));
           return null;
         },
         "storeBatch");
@@ -145,7 +150,9 @@ public class ChromaVectorRepository implements VectorRepository {
                   .collect(Collectors.toList());
 
           logger.debug(
-              "Similarity search returned {} results (threshold: {})", results.size(), threshold);
+              "Similarity search returned {} results (threshold: {})",
+              LogSanitizer.sanitize(results.size()),
+              LogSanitizer.sanitize(threshold));
           return results;
         },
         "similaritySearch");
@@ -164,8 +171,8 @@ public class ChromaVectorRepository implements VectorRepository {
     // This is a no-op for ChromaDB but kept for interface compatibility
     logger.info(
         "Collection '{}' will be created automatically on first use (dimensions: {})",
-        name,
-        dimensions);
+        LogSanitizer.sanitize(name),
+        LogSanitizer.sanitize(dimensions));
   }
 
   @Override
@@ -258,11 +265,11 @@ public class ChromaVectorRepository implements VectorRepository {
         if (attempt <= MAX_RETRIES) {
           logger.warn(
               "Operation '{}' failed (attempt {}/{}), retrying after {}ms: {}",
-              operationName,
-              attempt,
-              MAX_RETRIES + 1,
-              RETRY_DELAY_MS,
-              e.getMessage());
+              LogSanitizer.sanitize(operationName),
+              LogSanitizer.sanitize(attempt),
+              LogSanitizer.sanitize(MAX_RETRIES + 1),
+              LogSanitizer.sanitize(RETRY_DELAY_MS),
+              LogSanitizer.sanitize(e.getMessage()));
           try {
             Thread.sleep(RETRY_DELAY_MS);
           } catch (InterruptedException ie) {
@@ -270,7 +277,10 @@ public class ChromaVectorRepository implements VectorRepository {
             throw new VectorDbException("Operation interrupted during retry", ie);
           }
         } else {
-          logger.error("Operation '{}' failed after {} attempts", operationName, MAX_RETRIES + 1);
+          logger.error(
+              "Operation '{}' failed after {} attempts",
+              LogSanitizer.sanitize(operationName),
+              LogSanitizer.sanitize(MAX_RETRIES + 1));
         }
       }
     }

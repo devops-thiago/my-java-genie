@@ -19,6 +19,19 @@ public class TokenUsageMetrics {
     this.totalTokens = totalTokens;
   }
 
+  /** Copy constructor used for defensive copies. */
+  public TokenUsageMetrics(TokenUsageMetrics other) {
+    this(other.promptTokens, other.completionTokens, other.totalTokens);
+  }
+
+  /**
+   * Returns a defensive copy of the given metrics, or {@code null} if {@code metrics} is {@code
+   * null}.
+   */
+  public static TokenUsageMetrics copyOf(TokenUsageMetrics metrics) {
+    return metrics == null ? null : new TokenUsageMetrics(metrics);
+  }
+
   public int getPromptTokens() {
     return promptTokens;
   }

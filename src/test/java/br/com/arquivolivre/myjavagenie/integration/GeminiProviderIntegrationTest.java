@@ -37,19 +37,11 @@ class GeminiProviderIntegrationTest {
     wireMockServer.resetAll();
 
     // Create test configuration
-    config = new ModelConfig();
-    config.setProvider("gemini");
-    config.setTemperature(0.7);
-    config.setMaxTokens(500);
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings(
+            "test-project", "us-central1", "gemini-pro", "test-api-key", 30);
 
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setLocation("us-central1");
-    geminiSettings.setModelName("gemini-pro");
-    geminiSettings.setApiKey("test-api-key");
-    geminiSettings.setTimeoutSeconds(30);
-
-    config.setGemini(geminiSettings);
+    config = new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
   }
 
   @AfterEach
@@ -94,9 +86,9 @@ class GeminiProviderIntegrationTest {
     // sophisticated mocking or using a test double for the Vertex AI client.
 
     // For this test, we verify the configuration is correct
-    assertThat(config.getGemini()).isNotNull();
-    assertThat(config.getGemini().getProjectId()).isEqualTo("test-project");
-    assertThat(config.getGemini().getModelName()).isEqualTo("gemini-pro");
+    assertThat(config.gemini()).isNotNull();
+    assertThat(config.gemini().projectId()).isEqualTo("test-project");
+    assertThat(config.gemini().modelName()).isEqualTo("gemini-pro");
   }
 
   /** Test Requirement 10.5: Retry logic with exponential backoff */
@@ -152,7 +144,7 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify retry configuration is set up correctly
-    assertThat(config.getGemini().getTimeoutSeconds()).isEqualTo(30);
+    assertThat(config.gemini().timeoutSeconds()).isEqualTo(30);
   }
 
   /** Test Requirement 10.5: Handle safety filter errors */
@@ -177,7 +169,7 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify configuration handles error scenarios
-    assertThat(config.getProvider()).isEqualTo("gemini");
+    assertThat(config.provider()).isEqualTo("gemini");
   }
 
   /** Test Requirement 10.5: Handle quota exceeded errors */
@@ -202,7 +194,7 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify error handling configuration
-    assertThat(config.getGemini()).isNotNull();
+    assertThat(config.gemini()).isNotNull();
   }
 
   /** Test Requirement 10.5: Handle timeout errors */
@@ -227,17 +219,14 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify timeout configuration
-    assertThat(config.getGemini().getTimeoutSeconds()).isEqualTo(30);
+    assertThat(config.gemini().timeoutSeconds()).isEqualTo(30);
   }
 
   /** Test initialization with missing configuration */
   @Test
   void testInitializationWithMissingConfiguration() {
-    ModelConfig invalidConfig = new ModelConfig();
-    invalidConfig.setProvider("gemini");
-    invalidConfig.setTemperature(0.7);
-    invalidConfig.setMaxTokens(500);
     // No Gemini settings
+    ModelConfig invalidConfig = new ModelConfig("gemini", null, null, null, null, 0.7, 500);
 
     assertThatThrownBy(() -> new GeminiModelProvider(invalidConfig))
         .isInstanceOf(ModelInitializationException.class)
@@ -247,17 +236,12 @@ class GeminiProviderIntegrationTest {
   /** Test initialization with missing location */
   @Test
   void testInitializationWithMissingLocation() {
-    ModelConfig invalidConfig = new ModelConfig();
-    invalidConfig.setProvider("gemini");
-    invalidConfig.setTemperature(0.7);
-    invalidConfig.setMaxTokens(500);
-
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setModelName("gemini-pro");
     // Missing location
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings("test-project", null, "gemini-pro", null, null);
 
-    invalidConfig.setGemini(geminiSettings);
+    ModelConfig invalidConfig =
+        new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
     assertThatThrownBy(() -> new GeminiModelProvider(invalidConfig))
         .isInstanceOf(ModelInitializationException.class)
@@ -267,17 +251,12 @@ class GeminiProviderIntegrationTest {
   /** Test initialization with missing model name */
   @Test
   void testInitializationWithMissingModelName() {
-    ModelConfig invalidConfig = new ModelConfig();
-    invalidConfig.setProvider("gemini");
-    invalidConfig.setTemperature(0.7);
-    invalidConfig.setMaxTokens(500);
-
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
-    geminiSettings.setProjectId("test-project");
-    geminiSettings.setLocation("us-central1");
     // Missing model name
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings("test-project", "us-central1", null, null, null);
 
-    invalidConfig.setGemini(geminiSettings);
+    ModelConfig invalidConfig =
+        new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
     assertThatThrownBy(() -> new GeminiModelProvider(invalidConfig))
         .isInstanceOf(ModelInitializationException.class)
@@ -293,8 +272,8 @@ class GeminiProviderIntegrationTest {
     try {
       // This will fail to initialize the actual Vertex AI client, but we can test
       // the configuration validation
-      assertThat(config.getProvider()).isEqualTo("gemini");
-      assertThat(config.getGemini().getModelName()).isEqualTo("gemini-pro");
+      assertThat(config.provider()).isEqualTo("gemini");
+      assertThat(config.gemini().modelName()).isEqualTo("gemini-pro");
     } finally {
       System.clearProperty("GOOGLE_CLOUD_PROJECT");
     }
@@ -331,8 +310,8 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify configuration supports token tracking
-    assertThat(config.getGemini()).isNotNull();
-    assertThat(config.getMaxTokens()).isEqualTo(500);
+    assertThat(config.gemini()).isNotNull();
+    assertThat(config.maxTokens()).isEqualTo(500);
   }
 
   /** Test multiple retry attempts before failure */
@@ -357,27 +336,20 @@ class GeminiProviderIntegrationTest {
                                 """)));
 
     // Verify retry configuration
-    assertThat(config.getGemini().getTimeoutSeconds()).isGreaterThan(0);
+    assertThat(config.gemini().timeoutSeconds()).isGreaterThan(0);
   }
 
   /** Test configuration with project ID from environment */
   @Test
   void testConfigurationWithProjectIdFromEnvironment() {
-    ModelConfig envConfig = new ModelConfig();
-    envConfig.setProvider("gemini");
-    envConfig.setTemperature(0.7);
-    envConfig.setMaxTokens(500);
-
-    ModelConfig.GeminiSettings geminiSettings = new ModelConfig.GeminiSettings();
     // No project ID set - should fall back to environment
-    geminiSettings.setLocation("us-central1");
-    geminiSettings.setModelName("gemini-pro");
-    geminiSettings.setApiKey("test-key");
+    ModelConfig.GeminiSettings geminiSettings =
+        new ModelConfig.GeminiSettings(null, "us-central1", "gemini-pro", "test-key", null);
 
-    envConfig.setGemini(geminiSettings);
+    ModelConfig envConfig = new ModelConfig("gemini", null, null, null, geminiSettings, 0.7, 500);
 
     // Verify configuration is valid
-    assertThat(envConfig.getGemini().getLocation()).isEqualTo("us-central1");
-    assertThat(envConfig.getGemini().getModelName()).isEqualTo("gemini-pro");
+    assertThat(envConfig.gemini().location()).isEqualTo("us-central1");
+    assertThat(envConfig.gemini().modelName()).isEqualTo("gemini-pro");
   }
 }

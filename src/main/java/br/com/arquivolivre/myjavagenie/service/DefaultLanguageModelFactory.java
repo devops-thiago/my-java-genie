@@ -3,6 +3,8 @@ package br.com.arquivolivre.myjavagenie.service;
 import br.com.arquivolivre.myjavagenie.config.ModelConfig;
 import br.com.arquivolivre.myjavagenie.exception.InvalidConfigurationException;
 import br.com.arquivolivre.myjavagenie.exception.ModelInitializationException;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,15 +24,15 @@ public class DefaultLanguageModelFactory implements LanguageModelFactory {
       throw new InvalidConfigurationException("Model configuration is required");
     }
 
-    String provider = config.getProvider();
+    String provider = config.provider();
     if (provider == null || provider.isEmpty()) {
       throw new InvalidConfigurationException("Model provider type must be specified");
     }
 
-    logger.info("Creating language model provider: {}", provider);
+    logger.info("Creating language model provider: {}", LogSanitizer.sanitize(provider));
 
     try {
-      switch (provider.toLowerCase()) {
+      switch (provider.toLowerCase(Locale.ROOT)) {
         case "self-hosted":
           validateSelfHostedConfig(config);
           return new SelfHostedModelProvider(config);
@@ -68,17 +70,17 @@ public class DefaultLanguageModelFactory implements LanguageModelFactory {
    * @throws InvalidConfigurationException if configuration is invalid
    */
   private void validateSelfHostedConfig(ModelConfig config) {
-    ModelConfig.SelfHostedSettings settings = config.getSelfHosted();
+    ModelConfig.SelfHostedSettings settings = config.selfHosted();
     if (settings == null) {
       throw new InvalidConfigurationException(
           "Self-hosted settings are required for self-hosted provider");
     }
 
-    if (settings.getBaseUrl() == null || settings.getBaseUrl().isEmpty()) {
+    if (settings.baseUrl() == null || settings.baseUrl().isEmpty()) {
       throw new InvalidConfigurationException("Base URL is required for self-hosted provider");
     }
 
-    if (settings.getModelName() == null || settings.getModelName().isEmpty()) {
+    if (settings.modelName() == null || settings.modelName().isEmpty()) {
       throw new InvalidConfigurationException("Model name is required for self-hosted provider");
     }
   }
@@ -90,16 +92,16 @@ public class DefaultLanguageModelFactory implements LanguageModelFactory {
    * @throws InvalidConfigurationException if configuration is invalid
    */
   private void validateOpenAIConfig(ModelConfig config) {
-    ModelConfig.OpenAISettings settings = config.getOpenai();
+    ModelConfig.OpenAISettings settings = config.openai();
     if (settings == null) {
       throw new InvalidConfigurationException("OpenAI settings are required for openai provider");
     }
 
-    if (settings.getApiKey() == null || settings.getApiKey().isEmpty()) {
+    if (settings.apiKey() == null || settings.apiKey().isEmpty()) {
       throw new InvalidConfigurationException("API key is required for OpenAI provider");
     }
 
-    if (settings.getModelName() == null || settings.getModelName().isEmpty()) {
+    if (settings.modelName() == null || settings.modelName().isEmpty()) {
       throw new InvalidConfigurationException("Model name is required for OpenAI provider");
     }
   }
@@ -111,21 +113,21 @@ public class DefaultLanguageModelFactory implements LanguageModelFactory {
    * @throws InvalidConfigurationException if configuration is invalid
    */
   private void validateGeminiConfig(ModelConfig config) {
-    ModelConfig.GeminiSettings settings = config.getGemini();
+    ModelConfig.GeminiSettings settings = config.gemini();
     if (settings == null) {
       throw new InvalidConfigurationException("Gemini settings are required for gemini provider");
     }
 
-    if (settings.getLocation() == null || settings.getLocation().isEmpty()) {
+    if (settings.location() == null || settings.location().isEmpty()) {
       throw new InvalidConfigurationException("Location is required for Gemini provider");
     }
 
-    if (settings.getModelName() == null || settings.getModelName().isEmpty()) {
+    if (settings.modelName() == null || settings.modelName().isEmpty()) {
       throw new InvalidConfigurationException("Model name is required for Gemini provider");
     }
 
     // Project ID can come from config or environment variable
-    if ((settings.getProjectId() == null || settings.getProjectId().isEmpty())
+    if ((settings.projectId() == null || settings.projectId().isEmpty())
         && (System.getenv("GOOGLE_CLOUD_PROJECT") == null
             || System.getenv("GOOGLE_CLOUD_PROJECT").isEmpty())) {
       throw new InvalidConfigurationException(

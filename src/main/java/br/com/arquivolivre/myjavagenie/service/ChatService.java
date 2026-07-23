@@ -1,11 +1,12 @@
 package br.com.arquivolivre.myjavagenie.service;
 
 import br.com.arquivolivre.myjavagenie.model.*;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import br.com.arquivolivre.myjavagenie.websocket.ChatWebSocketHandler;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,14 +18,16 @@ public class ChatService {
   private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
 
   private final QueryService queryService;
-  private final SessionManager sessionManager;
+  private final SessionRegistry sessionManager;
+  private final ChatWebSocketHandler webSocketHandler;
 
-  @Autowired(required = false)
-  private ChatWebSocketHandler webSocketHandler;
-
-  public ChatService(QueryService queryService, SessionManager sessionManager) {
+  public ChatService(
+      QueryService queryService,
+      SessionRegistry sessionManager,
+      @Nullable ChatWebSocketHandler webSocketHandler) {
     this.queryService = queryService;
     this.sessionManager = sessionManager;
+    this.webSocketHandler = webSocketHandler;
   }
 
   /**
@@ -47,7 +50,7 @@ public class ChatService {
    * @return the query response with session information
    */
   public QueryResponse processMessage(String sessionId, String message, String webSocketSessionId) {
-    logger.info("Processing chat message for session: {}", sessionId);
+    logger.info("Processing chat message for session: {}", LogSanitizer.sanitize(sessionId));
 
     // Get or create session
     ChatSession session = sessionManager.getOrCreateSession(sessionId);
@@ -60,7 +63,10 @@ public class ChatService {
     // Add user message to session
     ChatMessage userMessage = new ChatMessage(ChatMessage.MessageRole.USER, message);
     session.addMessage(userMessage);
-    logger.debug("Added user message to session {}: {}", session.getSessionId(), message);
+    logger.debug(
+        "Added user message to session {}: {}",
+        LogSanitizer.sanitize(session.getSessionId()),
+        LogSanitizer.sanitize(message));
 
     // Send embedding status
     sendStatusUpdate(
@@ -91,7 +97,8 @@ public class ChatService {
         new ChatMessage(
             ChatMessage.MessageRole.ASSISTANT, response.getAnswer(), response.getSources());
     session.addMessage(assistantMessage);
-    logger.debug("Added assistant response to session {}", session.getSessionId());
+    logger.debug(
+        "Added assistant response to session {}", LogSanitizer.sanitize(session.getSessionId()));
 
     // Update response with session ID
     QueryResponse finalResponse =
@@ -131,11 +138,11 @@ public class ChatService {
    * @return the list of messages, or empty list if session not found
    */
   public List<ChatMessage> getHistory(String sessionId) {
-    logger.debug("Retrieving history for session: {}", sessionId);
+    logger.debug("Retrieving history for session: {}", LogSanitizer.sanitize(sessionId));
 
     ChatSession session = sessionManager.getSession(sessionId);
     if (session == null) {
-      logger.warn("Session not found: {}", sessionId);
+      logger.warn("Session not found: {}", LogSanitizer.sanitize(sessionId));
       return List.of();
     }
 
@@ -149,16 +156,16 @@ public class ChatService {
    * @return true if session was found and cleared, false otherwise
    */
   public boolean clearHistory(String sessionId) {
-    logger.info("Clearing history for session: {}", sessionId);
+    logger.info("Clearing history for session: {}", LogSanitizer.sanitize(sessionId));
 
     ChatSession session = sessionManager.getSession(sessionId);
     if (session == null) {
-      logger.warn("Session not found: {}", sessionId);
+      logger.warn("Session not found: {}", LogSanitizer.sanitize(sessionId));
       return false;
     }
 
     session.clearMessages();
-    logger.info("Cleared history for session: {}", sessionId);
+    logger.info("Cleared history for session: {}", LogSanitizer.sanitize(sessionId));
     return true;
   }
 

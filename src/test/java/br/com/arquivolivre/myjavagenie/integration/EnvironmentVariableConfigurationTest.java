@@ -27,10 +27,10 @@ class EnvironmentVariableConfigurationTest {
 
   @Container
   static GenericContainer<?> chromaContainer =
-      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:0.4.15"))
+      new GenericContainer<>(DockerImageName.parse("chromadb/chroma:1.5.9"))
           .withExposedPorts(8000)
           .waitingFor(
-              Wait.forHttp("/api/v1/heartbeat")
+              Wait.forHttp("/api/v2/heartbeat")
                   .forPort(8000)
                   .forStatusCode(200)
                   .withStartupTimeout(Duration.ofSeconds(60)));
@@ -64,11 +64,11 @@ class EnvironmentVariableConfigurationTest {
   void testEnvironmentVariableSubstitution() {
     ModelConfig modelConfig = configurationProvider.getModelConfig();
 
-    assertThat(modelConfig.getProvider()).isEqualTo("openai");
-    assertThat(modelConfig.getOpenai().getApiKey()).isEqualTo("env-test-key");
-    assertThat(modelConfig.getOpenai().getModelName()).isEqualTo("gpt-3.5-turbo");
-    assertThat(modelConfig.getTemperature()).isEqualTo(0.5);
-    assertThat(modelConfig.getMaxTokens()).isEqualTo(300);
+    assertThat(modelConfig.provider()).isEqualTo("openai");
+    assertThat(modelConfig.openai().apiKey()).isEqualTo("env-test-key");
+    assertThat(modelConfig.openai().modelName()).isEqualTo("gpt-3.5-turbo");
+    assertThat(modelConfig.temperature()).isEqualTo(0.5);
+    assertThat(modelConfig.maxTokens()).isEqualTo(300);
   }
 
   /** Test Requirement 7.1: Verify default values work when env vars not set */
@@ -83,8 +83,8 @@ class EnvironmentVariableConfigurationTest {
   void testQueryConfigFromEnvironmentVariables() {
     QueryConfig queryConfig = configurationProvider.getQueryConfig();
 
-    assertThat(queryConfig.getMaxRetrievedChunks()).isEqualTo(3);
-    assertThat(queryConfig.getSimilarityThreshold()).isEqualTo(0.8);
-    assertThat(queryConfig.getTimeoutSeconds()).isEqualTo(15);
+    assertThat(queryConfig.maxRetrievedChunks()).isEqualTo(3);
+    assertThat(queryConfig.similarityThreshold()).isEqualTo(0.8);
+    assertThat(queryConfig.timeoutSeconds()).isEqualTo(15);
   }
 }

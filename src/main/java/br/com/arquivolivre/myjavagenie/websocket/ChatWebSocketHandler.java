@@ -1,6 +1,7 @@
 package br.com.arquivolivre.myjavagenie.websocket;
 
 import br.com.arquivolivre.myjavagenie.model.QueryStatus;
+import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
@@ -35,7 +36,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     String sessionId = resolveClientSessionId(session);
     session.getAttributes().put(CLIENT_SESSION_ATTR, sessionId);
     sessions.put(sessionId, session);
-    logger.info("WebSocket connection established: {}", sessionId);
+    logger.info("WebSocket connection established: {}", LogSanitizer.sanitize(sessionId));
   }
 
   @Override
@@ -45,12 +46,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
       sessionId = session.getId();
     }
     sessions.remove(sessionId);
-    logger.info("WebSocket connection closed: {} with status: {}", sessionId, status);
+    logger.info(
+        "WebSocket connection closed: {} with status: {}",
+        LogSanitizer.sanitize(sessionId),
+        LogSanitizer.sanitize(status));
   }
 
   @Override
   protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-    logger.debug("Received WebSocket message from {}: {}", session.getId(), message.getPayload());
+    logger.debug(
+        "Received WebSocket message from {}: {}",
+        LogSanitizer.sanitize(session.getId()),
+        LogSanitizer.sanitize(message.getPayload()));
     // Messages from client can be handled here if needed
   }
 
@@ -66,12 +73,19 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
       try {
         String json = objectMapper.writeValueAsString(status);
         session.sendMessage(new TextMessage(json));
-        logger.debug("Sent status update to session {}: {}", webSocketSessionId, status.getStage());
+        logger.debug(
+            "Sent status update to session {}: {}",
+            LogSanitizer.sanitize(webSocketSessionId),
+            LogSanitizer.sanitize(status.getStage()));
       } catch (IOException e) {
-        logger.error("Error sending status update to session {}", webSocketSessionId, e);
+        logger.error(
+            "Error sending status update to session {}",
+            LogSanitizer.sanitize(webSocketSessionId),
+            e);
       }
     } else {
-      logger.warn("WebSocket session not found or closed: {}", webSocketSessionId);
+      logger.warn(
+          "WebSocket session not found or closed: {}", LogSanitizer.sanitize(webSocketSessionId));
     }
   }
 
@@ -97,13 +111,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 try {
                   session.sendMessage(new TextMessage(json));
                 } catch (IOException e) {
-                  logger.error("Error broadcasting to session {}", session.getId(), e);
+                  logger.error(
+                      "Error broadcasting to session {}",
+                      LogSanitizer.sanitize(session.getId()),
+                      e);
                 }
               }
             });
 
     logger.debug(
-        "Broadcasted status update to {} sessions: {}", sessions.size(), status.getStage());
+        "Broadcasted status update to {} sessions: {}",
+        LogSanitizer.sanitize(sessions.size()),
+        LogSanitizer.sanitize(status.getStage()));
   }
 
   /**
