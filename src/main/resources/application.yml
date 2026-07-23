@@ -17,7 +17,7 @@ model:
   openai:
     api-key: ${OPENAI_API_KEY:}
     model-name: gpt-4
-    timeout-seconds: 30
+    timeout-seconds: 300
   
   # Anthropic settings
   anthropic:
@@ -35,7 +35,7 @@ model:
   
   # Generation parameters
   temperature: 0.7
-  max-tokens: 500
+  max-tokens: 4096
 
 # Vector Database Configuration
 vector-db:
@@ -79,7 +79,7 @@ ingestion:
 query:
   max-retrieved-chunks: 5
   similarity-threshold: 0.7
-  timeout-seconds: 10
+  timeout-seconds: 300
   # Enable caching for repeated queries
   enable-cache: false
   cache-ttl-minutes: 60

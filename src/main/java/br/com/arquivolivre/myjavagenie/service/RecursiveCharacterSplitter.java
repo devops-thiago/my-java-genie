@@ -148,6 +148,18 @@ public class RecursiveCharacterSplitter implements DocumentProcessor {
     StringBuilder currentChunk = new StringBuilder();
 
     for (String split : splits) {
+      // A single split that is itself larger than the chunk size cannot fit in one chunk. Flush
+      // whatever is buffered, then split it further with the finer separators so no chunk ever
+      // exceeds the configured size (the character-level fallback guarantees termination).
+      if (split.length() > chunkSize) {
+        if (currentChunk.length() > 0) {
+          chunks.add(currentChunk.toString().trim());
+          currentChunk = new StringBuilder();
+        }
+        chunks.addAll(splitText(split, chunkSize, chunkOverlap));
+        continue;
+      }
+
       // If adding this split would exceed chunk size and we have content
       if (currentChunk.length() > 0 && currentChunk.length() + split.length() > chunkSize) {
 
@@ -195,12 +207,16 @@ public class RecursiveCharacterSplitter implements DocumentProcessor {
     while (start < text.length()) {
       int end = Math.min(start + chunkSize, text.length());
       chunks.add(text.substring(start, end));
-      start = end - chunkOverlap;
 
-      // Prevent infinite loop
-      if (start >= end) {
-        start = end;
+      // Once the window reaches the end there is nothing left to emit.
+      if (end >= text.length()) {
+        break;
       }
+
+      // Advance by (chunkSize - overlap), but always make forward progress so we can never loop
+      // forever (e.g. when the overlap is >= the chunk size).
+      int next = end - chunkOverlap;
+      start = next > start ? next : end;
     }
 
     return chunks;

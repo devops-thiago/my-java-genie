@@ -83,12 +83,12 @@ public class QueryService {
       long startTime = System.currentTimeMillis();
 
       try {
-        // Step 1: Retrieve relevant chunks
+        // Step 1: Retrieve relevant chunks (with similarity scores)
         logger.debug("Step 1: Retrieving relevant document chunks");
-        List<DocumentChunk> relevantChunks = retrievalEngine.retrieveRelevantChunks(question);
+        List<ScoredDocument> scoredChunks = retrievalEngine.retrieveRelevantChunks(question);
 
         // Handle case when no relevant documents are found
-        if (relevantChunks.isEmpty()) {
+        if (scoredChunks.isEmpty()) {
           logger.warn(
               "No relevant documents found for query: {}",
               LogSanitizer.sanitize(truncateForLog(question)));
@@ -99,10 +99,13 @@ public class QueryService {
           return createNoResultsResponse(question, startTime);
         }
 
-        logger.info("Retrieved {} relevant chunks", LogSanitizer.sanitize(relevantChunks.size()));
+        logger.info("Retrieved {} relevant chunks", LogSanitizer.sanitize(scoredChunks.size()));
         if (span != null) {
-          span.setAttribute("query.chunks_retrieved", relevantChunks.size());
+          span.setAttribute("query.chunks_retrieved", scoredChunks.size());
         }
+
+        List<DocumentChunk> relevantChunks =
+            scoredChunks.stream().map(ScoredDocument::getChunk).collect(Collectors.toList());
 
         // Step 2: Build prompt with retrieved context
         logger.debug("Step 2: Building prompt with context");
@@ -127,7 +130,7 @@ public class QueryService {
 
         // Step 4: Extract source references
         logger.debug("Step 4: Extracting source references");
-        List<SourceReference> sources = extractSourceReferences(relevantChunks);
+        List<SourceReference> sources = extractSourceReferences(scoredChunks);
 
         // Step 5: Track token usage
         logger.debug("Step 5: Recording token usage");
@@ -354,27 +357,28 @@ public class QueryService {
   /**
    * Extracts source references from document chunks.
    *
-   * @param chunks the document chunks to extract sources from
+   * @param scoredChunks the retrieved chunks with similarity scores
    * @return list of source references
    */
-  private List<SourceReference> extractSourceReferences(List<DocumentChunk> chunks) {
-    return chunks.stream()
+  private List<SourceReference> extractSourceReferences(List<ScoredDocument> scoredChunks) {
+    return scoredChunks.stream()
         .map(
-            chunk -> {
+            scored -> {
+              DocumentChunk chunk = scored.getChunk();
+              DocumentMetadata metadata = chunk != null ? chunk.getMetadata() : null;
+
               String filename =
-                  chunk.getMetadata() != null && chunk.getMetadata().getSourceFile() != null
-                      ? chunk.getMetadata().getSourceFile()
+                  metadata != null && metadata.getSourceFile() != null
+                      ? metadata.getSourceFile()
                       : "Unknown";
 
               String section =
-                  chunk.getMetadata() != null && chunk.getMetadata().getSection() != null
-                      ? chunk.getMetadata().getSection()
-                      : null;
+                  metadata != null && metadata.getSection() != null ? metadata.getSection() : null;
 
-              int chunkIndex =
-                  chunk.getMetadata() != null ? chunk.getMetadata().getChunkIndex() : 0;
+              int chunkIndex = metadata != null ? metadata.getChunkIndex() : 0;
 
-              return new SourceReference(filename, section, chunkIndex);
+              return new SourceReference(
+                  filename, section, chunkIndex, scored.getSimilarityScore());
             })
         .collect(Collectors.toList());
   }

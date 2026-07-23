@@ -3,7 +3,6 @@ package br.com.arquivolivre.myjavagenie.service;
 import br.com.arquivolivre.myjavagenie.config.QueryConfig;
 import br.com.arquivolivre.myjavagenie.exception.EmbeddingGenerationException;
 import br.com.arquivolivre.myjavagenie.exception.VectorDbQueryException;
-import br.com.arquivolivre.myjavagenie.model.DocumentChunk;
 import br.com.arquivolivre.myjavagenie.model.ScoredDocument;
 import br.com.arquivolivre.myjavagenie.repository.VectorRepository;
 import br.com.arquivolivre.myjavagenie.util.LogSanitizer;
@@ -50,7 +49,7 @@ public class RetrievalEngine {
    * @throws EmbeddingGenerationException if query embedding generation fails
    * @throws VectorDbQueryException if vector database search fails
    */
-  public List<DocumentChunk> retrieveRelevantChunks(String query) {
+  public List<ScoredDocument> retrieveRelevantChunks(String query) {
     logger.debug("Retrieving relevant chunks for query: {}", LogSanitizer.sanitize(query));
 
     // Generate embedding for the query with tracing
@@ -131,11 +130,10 @@ public class RetrievalEngine {
         LogSanitizer.sanitize(threshold),
         LogSanitizer.sanitize(scoredDocuments.size()));
 
-    // Limit results to maxRetrievedChunks
-    List<DocumentChunk> relevantChunks =
+    // Limit results to maxRetrievedChunks, keeping each chunk's similarity score
+    List<ScoredDocument> relevantChunks =
         filteredDocuments.stream()
             .limit(queryConfig.maxRetrievedChunks())
-            .map(ScoredDocument::getChunk)
             .collect(Collectors.toList());
 
     logger.info(
