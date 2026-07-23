@@ -85,8 +85,7 @@ public class QueryService {
 
           // When the model returned the fixed out-of-scope reply (context did not answer the
           // question), do not attach the nearest-but-irrelevant chunks as sources.
-          boolean outOfScope =
-              answer != null && answer.contains(PromptBuilder.OUT_OF_SCOPE_MARKER);
+          boolean outOfScope = answer != null && answer.contains(PromptBuilder.OUT_OF_SCOPE_MARKER);
           List<SourceReference> sources = outOfScope ? List.of() : toSources(chunks);
           long latency = System.currentTimeMillis() - started;
           telemetry.recordQuery(latency, llmConfig.getModelName(), topK);

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
+import br.com.arquivolivre.myjavagenie.config.LlmConfig;
 import br.com.arquivolivre.myjavagenie.config.QueryConfig;
 import br.com.arquivolivre.myjavagenie.model.QueryResponse;
 import br.com.arquivolivre.myjavagenie.model.ScoredChunk;
@@ -33,7 +34,16 @@ class QueryServiceTest {
     QueryConfig config = new QueryConfig();
     config.setMaxRetrievedChunks(5);
     config.setSimilarityThreshold(0.5);
-    queryService = new QueryService(chatModel, vectorStoreRepository, new PromptBuilder(), config);
+    LlmConfig llmConfig = new LlmConfig();
+    llmConfig.setModelName("test-model");
+    llmConfig.setMaxTokens(512);
+    RagTelemetry telemetry =
+        new RagTelemetry(
+            io.opentelemetry.api.OpenTelemetry.noop().getTracer("test"),
+            io.opentelemetry.api.OpenTelemetry.noop().getMeter("test"));
+    queryService =
+        new QueryService(
+            chatModel, vectorStoreRepository, new PromptBuilder(), config, llmConfig, telemetry);
   }
 
   private static dev.langchain4j.model.chat.response.ChatResponse llmResponse(String text) {
