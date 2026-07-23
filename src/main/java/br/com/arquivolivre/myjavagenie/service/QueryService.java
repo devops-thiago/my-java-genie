@@ -6,11 +6,9 @@ import br.com.arquivolivre.myjavagenie.model.QueryResponse;
 import br.com.arquivolivre.myjavagenie.model.ScoredChunk;
 import br.com.arquivolivre.myjavagenie.model.SourceReference;
 import br.com.arquivolivre.myjavagenie.repository.VectorStoreRepository;
-import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.chat.ChatModel;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -21,13 +19,13 @@ import org.springframework.stereotype.Service;
 public class QueryService {
   private static final Logger logger = LoggerFactory.getLogger(QueryService.class);
 
-  private final ChatLanguageModel chatModel;
+  private final ChatModel chatModel;
   private final VectorStoreRepository vectorStoreRepository;
   private final PromptBuilder promptBuilder;
   private final QueryConfig queryConfig;
 
   public QueryService(
-      ChatLanguageModel chatModel,
+      ChatModel chatModel,
       VectorStoreRepository vectorStoreRepository,
       PromptBuilder promptBuilder,
       QueryConfig queryConfig) {
@@ -63,14 +61,18 @@ public class QueryService {
     }
 
     String answer = generate(question, chunks);
-    List<SourceReference> sources = toSources(chunks);
+
+    // When the model returned the fixed out-of-scope reply (context did not answer the
+    // question), do not attach the nearest-but-irrelevant chunks as sources.
+    boolean outOfScope = answer != null && answer.contains(PromptBuilder.OUT_OF_SCOPE_MARKER);
+    List<SourceReference> sources = outOfScope ? List.of() : toSources(chunks);
     return new QueryResponse(answer, sources, searchQuery, System.currentTimeMillis() - started);
   }
 
   private String translateForSearch(String question) {
     try {
       String translated =
-          chatModel.generate(
+          chatModel.chat(
               "Translate the following user question to English for searching Java documentation. "
                   + "Reply with only the translation, no quotes.\n\n"
                   + question);
@@ -88,11 +90,11 @@ public class QueryService {
     List<dev.langchain4j.data.message.ChatMessage> messages = new ArrayList<>();
     messages.add(SystemMessage.from(promptBuilder.buildSystemPrompt()));
     messages.add(UserMessage.from(promptBuilder.buildUserPrompt(question, chunks)));
-    Response<AiMessage> response = chatModel.generate(messages);
-    if (response == null || response.content() == null || response.content().text() == null) {
+    dev.langchain4j.model.chat.response.ChatResponse response = chatModel.chat(messages);
+    if (response == null || response.aiMessage() == null || response.aiMessage().text() == null) {
       throw new LlmException("LLM returned an empty response");
     }
-    return response.content().text();
+    return response.aiMessage().text();
   }
 
   private List<SourceReference> toSources(List<ScoredChunk> chunks) {

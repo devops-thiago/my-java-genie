@@ -7,12 +7,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class PromptBuilder {
 
+  /**
+   * Fixed reply the model must return when the retrieved context does not answer the question (e.g.
+   * an off-topic question). QueryService detects it via {@link #OUT_OF_SCOPE_MARKER} and suppresses
+   * the (irrelevant) source citations.
+   */
+  public static final String OUT_OF_SCOPE_ANSWER =
+      "Só posso responder perguntas sobre a documentação do Java, e não encontrei nada"
+          + " relevante para a sua pergunta nas minhas fontes.";
+
+  /** Stable substring used to detect the out-of-scope reply in the model's answer. */
+  public static final String OUT_OF_SCOPE_MARKER =
+      "Só posso responder perguntas sobre a documentação do Java";
+
   public String buildSystemPrompt() {
     return """
-        You are a helpful assistant for Java documentation.
+        You are an assistant that answers strictly from the provided Java documentation.
         Answer in Portuguese.
-        Use ONLY the provided context. If the context is insufficient, say you do not know based on the documents.
-        """;
+        Use ONLY the information in the provided context. Do not use any outside or prior \
+        knowledge, and never make anything up.
+        If the context does not contain information that answers the question, or the question \
+        is not about the Java documentation, reply with exactly the following sentence and \
+        nothing else: "%s"
+        When the context does answer the question, be accurate and cite the source files you used.
+        """
+        .formatted(OUT_OF_SCOPE_ANSWER);
   }
 
   public String buildUserPrompt(String originalQuestion, List<ScoredChunk> chunks) {
