@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- Intentionally empty: keep verify/sonar jobs from failing on a missing filter file. -->
+</FindBugsFilter>
