@@ -48,8 +48,22 @@ curl -X POST http://localhost:8080/api/chat/query \
   -d '{"sessionId":"demo","message":"Olá!"}'
 ```
 
+## Ingest sample docs
+
+With the app running:
+
+```bash
+curl -X POST "http://localhost:8080/api/ingest?path=docs/specs/primitive-types-in-patterns-instanceof-switch-jls.html"
+```
+
 ## Tests
 
 ```bash
 mvn clean test
+```
+
+## ChromaDB
+
+```bash
+docker compose up -d chromadb
 ```

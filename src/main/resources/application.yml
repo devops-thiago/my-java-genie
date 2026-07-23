@@ -14,6 +14,10 @@ llm:
   max-tokens: 1024
   timeout-seconds: 60
 
+ingestion:
+  chunk-size: 1000
+  chunk-overlap: 200
+
 chat:
   session:
     timeout-seconds: 1800

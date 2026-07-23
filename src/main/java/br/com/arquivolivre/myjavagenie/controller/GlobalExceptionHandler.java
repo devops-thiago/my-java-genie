@@ -1,5 +1,6 @@
 package br.com.arquivolivre.myjavagenie.controller;
 
+import br.com.arquivolivre.myjavagenie.exception.DocumentProcessingException;
 import br.com.arquivolivre.myjavagenie.exception.LlmException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -32,6 +33,20 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation failed",
                 "Request validation failed: " + errors,
+                request.getDescription(false),
+                LocalDateTime.now()));
+  }
+
+  @ExceptionHandler(DocumentProcessingException.class)
+  public ResponseEntity<ErrorResponse> handleDocumentProcessingException(
+      DocumentProcessingException ex, WebRequest request) {
+    logger.error("Document processing error: {}", ex.getMessage(), ex);
+    return ResponseEntity.badRequest()
+        .body(
+            new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Document processing failed",
+                ex.getMessage(),
                 request.getDescription(false),
                 LocalDateTime.now()));
   }
