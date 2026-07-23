@@ -21,6 +21,8 @@
     <properties>
         <java.version>21</java.version>
         <langchain4j.version>1.18.0</langchain4j.version>
+        <!-- Embeddings and Chroma ship on the beta train; 1.18.0-beta28 is the aligned build. -->
+        <langchain4j.beta.version>1.18.0-beta28</langchain4j.beta.version>
         <spotless.version>2.44.5</spotless.version>
         <jacoco.version>0.8.12</jacoco.version>
     </properties>
@@ -62,13 +64,13 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>${langchain4j.beta.version}</version>
         </dependency>
 
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-chroma</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>${langchain4j.beta.version}</version>
         </dependency>
 
         <dependency>

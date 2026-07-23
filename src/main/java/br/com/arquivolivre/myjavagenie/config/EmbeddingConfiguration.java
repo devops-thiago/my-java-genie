@@ -2,6 +2,7 @@ package br.com.arquivolivre.myjavagenie.config;
 
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
+import dev.langchain4j.store.embedding.chroma.ChromaApiVersion;
 import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,12 @@ public class EmbeddingConfiguration {
         "Connecting Chroma at {} collection={}",
         config.getConnectionUrl(),
         config.getCollectionName());
+    // Chroma 1.x removed the v1 REST API; the client must speak v2 and name tenant/database.
     return ChromaEmbeddingStore.builder()
         .baseUrl(config.getConnectionUrl())
+        .apiVersion(ChromaApiVersion.V2)
+        .tenantName("default_tenant")
+        .databaseName("default_database")
         .collectionName(config.getCollectionName())
         .build();
   }

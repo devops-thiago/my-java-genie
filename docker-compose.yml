@@ -1,14 +1,12 @@
 services:
   chromadb:
-    image: chromadb/chroma:0.4.24
+    image: chromadb/chroma:1.5.9
     container_name: my-java-genie-chromadb
     ports:
       - "8000:8000"
     volumes:
-      - chroma-data:/chroma/chroma
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=FALSE
+      # Chroma 1.x persists to /data (configured in the image's /config.yaml).
+      - chroma-data:/data
     healthcheck:
       test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/8000' || exit 1"]
       interval: 10s
