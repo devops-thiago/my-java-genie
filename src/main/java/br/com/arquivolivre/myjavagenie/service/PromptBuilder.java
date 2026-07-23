@@ -12,14 +12,30 @@ import org.springframework.stereotype.Component;
 @Component
 public class PromptBuilder {
 
+  /**
+   * Fixed reply the model is instructed to return whenever the retrieved context does not answer
+   * the question (e.g. an off-topic question). Exposed so callers can detect the refusal and avoid
+   * attaching irrelevant source citations to it.
+   */
+  public static final String OUT_OF_SCOPE_ANSWER =
+      "I can only answer questions about the Java 25 documentation, and I couldn't find "
+          + "anything relevant to your question in my sources.";
+
   private static final String SYSTEM_PROMPT =
-      "You are an expert on Java 25 documentation. "
-          + "Answer questions accurately based on the provided context. "
-          + "If the context doesn't contain relevant information, say so. "
-          + "Keep answers concise and cite sources when possible.";
+      "You are an assistant that answers strictly from the provided Java 25 documentation. "
+          + "Use ONLY the information in the Context section below to answer the Question. "
+          + "Do not use any outside or prior knowledge, and never make anything up. "
+          + "If the Context does not contain information that answers the Question, or the "
+          + "Question is not about Java 25, reply with exactly the following sentence and nothing "
+          + "else: \""
+          + OUT_OF_SCOPE_ANSWER
+          + "\" When the Context does answer the Question, be accurate and cite the source files "
+          + "you used.";
 
   /**
-   * Builds a complete prompt for the language model.
+   * Builds a complete prompt for the language model. The strict grounding instructions are
+   * prepended so the model only answers from the retrieved context (the provider sends this string
+   * verbatim, so the instructions must live inside it).
    *
    * @param question the user's question
    * @param retrievedChunks the relevant document chunks retrieved from the vector database
@@ -31,7 +47,7 @@ public class PromptBuilder {
     }
 
     String context = formatContext(retrievedChunks);
-    return "Context:\n" + context + "\n\nQuestion: " + question + "\n\nAnswer:";
+    return SYSTEM_PROMPT + "\n\nContext:\n" + context + "\n\nQuestion: " + question + "\n\nAnswer:";
   }
 
   /**
