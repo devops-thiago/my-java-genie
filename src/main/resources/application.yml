@@ -11,20 +11,28 @@ llm:
   base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
   model-name: ${LLM_MODEL_NAME:gpt-4o-mini}
   temperature: 0.7
-  max-tokens: 1024
+  max-tokens: ${LLM_MAX_TOKENS:1024}
   timeout-seconds: 60
 
 ingestion:
-  chunk-size: 1000
-  chunk-overlap: 200
+  chunk-size: ${INGEST_CHUNK_SIZE:1000}
+  chunk-overlap: ${INGEST_CHUNK_OVERLAP:200}
 
 vector-db:
   connection-url: ${VECTOR_DB_URL:http://localhost:8000}
   collection-name: workshop_docs
 
 query:
-  max-retrieved-chunks: 5
+  max-retrieved-chunks: ${QUERY_TOP_K:5}
   similarity-threshold: 0.2
+
+opentelemetry:
+  enabled: ${OTEL_ENABLED:true}
+  service-name: ${OTEL_SERVICE_NAME:my-java-genie}
+  # logging = console (default for lab); otlp = send to a collector
+  exporter: ${OTEL_EXPORTER:logging}
+  otlp-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  metrics-export-interval-millis: 10000
 
 chat:
   session:
@@ -35,3 +43,4 @@ logging:
     root: INFO
     br.com.arquivolivre.myjavagenie: INFO
     dev.langchain4j: WARN
+    io.opentelemetry.exporter.logging: INFO

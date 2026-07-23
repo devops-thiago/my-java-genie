@@ -18,36 +18,45 @@ public class IngestionService {
   private final DocumentLoader documentLoader;
   private final RecursiveCharacterSplitter splitter;
   private final VectorStoreRepository vectorStoreRepository;
+  private final RagTelemetry telemetry;
 
   public IngestionService(
       DocumentLoader documentLoader,
       RecursiveCharacterSplitter splitter,
-      VectorStoreRepository vectorStoreRepository) {
+      VectorStoreRepository vectorStoreRepository,
+      RagTelemetry telemetry) {
     this.documentLoader = documentLoader;
     this.splitter = splitter;
     this.vectorStoreRepository = vectorStoreRepository;
+    this.telemetry = telemetry;
   }
 
   public IngestionResult ingest(String path) {
-    List<LoadedDocument> documents = documentLoader.load(Path.of(path));
-    List<DocumentChunk> chunks = new ArrayList<>();
-    List<Integer> sizes = new ArrayList<>();
+    return telemetry.inSpan(
+        "ingest",
+        () -> {
+          List<LoadedDocument> documents = documentLoader.load(Path.of(path));
+          List<DocumentChunk> chunks = new ArrayList<>();
+          List<Integer> sizes = new ArrayList<>();
 
-    for (LoadedDocument document : documents) {
-      List<DocumentChunk> documentChunks = splitter.split(document);
-      chunks.addAll(documentChunks);
-      for (DocumentChunk chunk : documentChunks) {
-        sizes.add(chunk.getContent().length());
-        logger.info(
-            "Chunk {} from {} ({} chars)",
-            chunk.getChunkIndex(),
-            chunk.getFilename(),
-            chunk.getContent().length());
-      }
-    }
+          for (LoadedDocument document : documents) {
+            List<DocumentChunk> documentChunks = splitter.split(document);
+            chunks.addAll(documentChunks);
+            for (DocumentChunk chunk : documentChunks) {
+              sizes.add(chunk.getContent().length());
+              logger.info(
+                  "Chunk {} from {} ({} chars)",
+                  chunk.getChunkIndex(),
+                  chunk.getFilename(),
+                  chunk.getContent().length());
+            }
+          }
 
-    vectorStoreRepository.storeAll(chunks);
-    logger.info("Ingested {} documents into {} embedded chunks", documents.size(), chunks.size());
-    return new IngestionResult(documents.size(), chunks.size(), sizes);
+          telemetry.inSpan("embed", () -> vectorStoreRepository.storeAll(chunks));
+          telemetry.recordIngestChunks(chunks.size());
+          logger.info(
+              "Ingested {} documents into {} embedded chunks", documents.size(), chunks.size());
+          return new IngestionResult(documents.size(), chunks.size(), sizes);
+        });
   }
 }

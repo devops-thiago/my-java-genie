@@ -62,6 +62,34 @@ curl -X POST http://localhost:8080/api/query \
 
 Chat UI uses the same RAG path via `/api/chat/query`.
 
+## Cost knobs
+
+| Variable | Effect |
+|---|---|
+| `QUERY_TOP_K` | How many chunks go into the prompt (try `5` then `2`) |
+| `INGEST_CHUNK_SIZE` / `INGEST_CHUNK_OVERLAP` | Chunk shape at ingest time |
+| `LLM_MAX_TOKENS` | Max completion tokens from the LLM |
+
+After a query, logs show latency and approximate token counts.
+
+## OpenTelemetry
+
+Enabled by default with the **logging** exporter (spans and metrics print to the console).
+
+```bash
+# default — watch the app log after ingest/query
+OTEL_EXPORTER=logging
+
+# optional — send to an OTLP collector (e.g. instructor Grafana stack)
+OTEL_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+Instrumented spans: `ingest`, `embed`, `query`, `translate`, `retrieve`, `generate`.
+
+Metrics: `rag.query.latency`, `rag.retrieve.latency`, `rag.generate.latency`,
+`rag.chunks.retrieved`, `rag.tokens.prompt`, `rag.tokens.completion`, `rag.ingest.chunks`.
+
 ## Tests
 
 ```bash
