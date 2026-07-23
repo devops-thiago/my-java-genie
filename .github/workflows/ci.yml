@@ -172,6 +172,9 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: build-and-test
+    # Automatic Analysis (SonarCloud GitHub App) is the source of truth for OSS;
+    # this Maven scan needs a valid SONAR_TOKEN and must not block the PR.
+    continue-on-error: true
 
     steps:
       - name: Checkout code
