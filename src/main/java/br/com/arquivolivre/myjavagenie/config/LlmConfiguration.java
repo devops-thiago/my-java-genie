@@ -1,6 +1,6 @@
 package br.com.arquivolivre.myjavagenie.config;
 
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import java.time.Duration;
 import org.slf4j.Logger;
@@ -16,7 +16,7 @@ public class LlmConfiguration {
   private static final Logger logger = LoggerFactory.getLogger(LlmConfiguration.class);
 
   @Bean
-  public ChatLanguageModel chatLanguageModel(LlmConfig config) {
+  public ChatModel chatModel(LlmConfig config) {
     logger.info(
         "Initializing OpenAI-compatible chat model '{}' at {}",
         config.getModelName(),

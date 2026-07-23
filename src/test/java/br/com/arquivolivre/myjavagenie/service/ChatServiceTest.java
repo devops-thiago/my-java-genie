@@ -10,8 +10,7 @@ import br.com.arquivolivre.myjavagenie.exception.LlmException;
 import br.com.arquivolivre.myjavagenie.model.ChatMessage;
 import br.com.arquivolivre.myjavagenie.model.ChatResponse;
 import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.chat.ChatModel;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class ChatServiceTest {
 
-  @Mock private ChatLanguageModel chatModel;
+  @Mock private ChatModel chatModel;
 
   private SessionManager sessionManager;
   private ChatService chatService;
@@ -37,7 +36,7 @@ class ChatServiceTest {
 
   @Test
   void processMessageShouldReturnLlmAnswerAndStoreHistory() {
-    when(chatModel.generate(anyList())).thenReturn(Response.from(AiMessage.from("hello back")));
+    when(chatModel.chat(anyList())).thenReturn(llmResponse("hello back"));
 
     ChatResponse response = chatService.processMessage("session-1", "hello");
 
@@ -49,12 +48,12 @@ class ChatServiceTest {
         .isEqualTo(ChatMessage.MessageRole.USER);
     assertThat(chatService.getHistory("session-1").get(1).role())
         .isEqualTo(ChatMessage.MessageRole.ASSISTANT);
-    verify(chatModel).generate(anyList());
+    verify(chatModel).chat(anyList());
   }
 
   @Test
   void processMessageShouldWrapLlmFailures() {
-    when(chatModel.generate(anyList())).thenThrow(new RuntimeException("boom"));
+    when(chatModel.chat(anyList())).thenThrow(new RuntimeException("boom"));
 
     assertThatThrownBy(() -> chatService.processMessage("session-1", "hello"))
         .isInstanceOf(LlmException.class)
@@ -73,7 +72,7 @@ class ChatServiceTest {
 
   @Test
   void clearHistoryShouldClearExistingSession() {
-    when(chatModel.generate(anyList())).thenReturn(Response.from(AiMessage.from("ok")));
+    when(chatModel.chat(anyList())).thenReturn(llmResponse("ok"));
     chatService.processMessage("session-1", "hi");
 
     assertThat(chatService.clearHistory("session-1")).isTrue();
@@ -82,7 +81,7 @@ class ChatServiceTest {
 
   @Test
   void sessionExistsShouldReflectSessionManager() {
-    when(chatModel.generate(anyList())).thenReturn(Response.from(AiMessage.from("ok")));
+    when(chatModel.chat(anyList())).thenReturn(llmResponse("ok"));
     chatService.processMessage("session-1", "hi");
 
     assertThat(chatService.sessionExists("session-1")).isTrue();
@@ -91,11 +90,17 @@ class ChatServiceTest {
 
   @Test
   void getHistoryShouldReturnMessages() {
-    when(chatModel.generate(anyList())).thenReturn(Response.from(AiMessage.from("ok")));
+    when(chatModel.chat(anyList())).thenReturn(llmResponse("ok"));
     chatService.processMessage("session-1", "hi");
 
     List<ChatMessage> history = chatService.getHistory("session-1");
     assertThat(history).hasSize(2);
     assertThat(history.get(0).content()).isEqualTo("hi");
+  }
+
+  private static dev.langchain4j.model.chat.response.ChatResponse llmResponse(String text) {
+    return dev.langchain4j.model.chat.response.ChatResponse.builder()
+        .aiMessage(AiMessage.from(text))
+        .build();
   }
 }

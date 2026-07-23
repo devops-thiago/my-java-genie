@@ -9,8 +9,7 @@ import br.com.arquivolivre.myjavagenie.websocket.ChatWebSocketHandler;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.chat.ChatModel;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -24,13 +23,13 @@ public class ChatService {
   private static final String SYSTEM_PROMPT =
       "You are a helpful assistant. Answer clearly and concisely.";
 
-  private final ChatLanguageModel chatModel;
+  private final ChatModel chatModel;
   private final SessionManager sessionManager;
 
   @Autowired(required = false)
   private ChatWebSocketHandler webSocketHandler;
 
-  public ChatService(ChatLanguageModel chatModel, SessionManager sessionManager) {
+  public ChatService(ChatModel chatModel, SessionManager sessionManager) {
     this.chatModel = chatModel;
     this.sessionManager = sessionManager;
   }
@@ -110,11 +109,11 @@ public class ChatService {
       }
     }
 
-    Response<AiMessage> response = chatModel.generate(messages);
-    if (response == null || response.content() == null || response.content().text() == null) {
+    dev.langchain4j.model.chat.response.ChatResponse response = chatModel.chat(messages);
+    if (response == null || response.aiMessage() == null || response.aiMessage().text() == null) {
       throw new LlmException("LLM returned an empty response");
     }
-    return response.content().text();
+    return response.aiMessage().text();
   }
 
   private void sendStatusUpdate(
