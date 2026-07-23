@@ -20,7 +20,9 @@ public class IngestionController {
 
   @PostMapping
   public ResponseEntity<IngestionResult> ingest(
-      @RequestParam(defaultValue = "docs/specs/primitive-types-in-patterns-instanceof-switch-jls.html") String path) {
+      @RequestParam(
+              defaultValue = "docs/specs/primitive-types-in-patterns-instanceof-switch-jls.html")
+          String path) {
     return ResponseEntity.ok(ingestionService.ingest(path));
   }
 }

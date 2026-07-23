@@ -34,7 +34,9 @@ public class RecursiveCharacterSplitter {
     if (text.length() <= chunkSize) {
       return List.of(text);
     }
-    return splitRecursive(text, chunkSize, overlap, 0);
+    // Overlap is applied once, over the final chunk list. Applying it inside the recursion would
+    // stack one prefix per separator level and let chunks grow past chunkSize + overlap.
+    return applyOverlap(splitRecursive(text, chunkSize, overlap, 0), overlap);
   }
 
   private List<String> splitRecursive(String text, int chunkSize, int overlap, int separatorIndex) {
@@ -74,7 +76,7 @@ public class RecursiveCharacterSplitter {
     if (!current.isEmpty()) {
       chunks.addAll(splitRecursive(current.toString(), chunkSize, overlap, separatorIndex + 1));
     }
-    return applyOverlap(chunks, overlap);
+    return chunks;
   }
 
   private List<String> hardSplit(String text, int chunkSize, int overlap) {
