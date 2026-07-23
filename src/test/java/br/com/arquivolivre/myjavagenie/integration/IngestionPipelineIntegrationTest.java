@@ -55,6 +55,7 @@ class IngestionPipelineIntegrationTest {
         () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
     registry.add("vector-db.collection-name", () -> "test_ingestion");
     registry.add("rag.startup-validation.enabled", () -> "false");
+    registry.add("opentelemetry.enabled", () -> "false");
 
     // Configure ingestion settings
     registry.add("ingestion.chunk-size", () -> "500");

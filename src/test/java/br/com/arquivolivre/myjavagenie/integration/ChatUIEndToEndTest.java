@@ -64,6 +64,7 @@ class ChatUIEndToEndTest {
         () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
     registry.add("vector-db.collection-name", () -> "test_e2e_chat");
     registry.add("rag.startup-validation.enabled", () -> "false");
+    registry.add("opentelemetry.enabled", () -> "false");
 
     registry.add("model.provider", () -> "openai");
     registry.add("model.openai.api-key", () -> "test-api-key");
@@ -158,7 +159,7 @@ class ChatUIEndToEndTest {
     // Step 2: User sends first question (creates new chat session)
     ChatRequest request1 = new ChatRequest(null, "What are records in Java?", webSocketSessionId);
     ResponseEntity<ChatResponse> response1 =
-        restTemplate.postForEntity("/chat/query", request1, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request1, ChatResponse.class);
 
     // Verify first response
     assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -174,7 +175,7 @@ class ChatUIEndToEndTest {
     ChatRequest request2 =
         new ChatRequest(sessionId, "Can you give me an example?", webSocketSessionId);
     ResponseEntity<ChatResponse> response2 =
-        restTemplate.postForEntity("/chat/query", request2, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request2, ChatResponse.class);
 
     // Verify second response maintains session
     assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -185,7 +186,7 @@ class ChatUIEndToEndTest {
 
     // Step 4: User retrieves conversation history (UI displays history)
     ResponseEntity<ChatMessage[]> historyResponse =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
 
     assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     ChatMessage[] messages = historyResponse.getBody();
@@ -201,10 +202,10 @@ class ChatUIEndToEndTest {
     assertThat(messages[3].role()).isEqualTo(ChatMessage.MessageRole.ASSISTANT);
 
     // Step 5: User clears history (UI reset)
-    restTemplate.delete("/chat/history?sessionId=" + sessionId);
+    restTemplate.delete("/api/chat/history?sessionId=" + sessionId);
 
     ResponseEntity<ChatMessage[]> clearedHistory =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
     assertThat(clearedHistory.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(clearedHistory.getBody()).isEmpty();
 
@@ -218,13 +219,13 @@ class ChatUIEndToEndTest {
     // User 1 creates a session
     ChatRequest user1Request1 = new ChatRequest(null, "What are records?");
     ResponseEntity<ChatResponse> user1Response1 =
-        restTemplate.postForEntity("/chat/query", user1Request1, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", user1Request1, ChatResponse.class);
     String user1SessionId = user1Response1.getBody().getSessionId();
 
     // User 2 creates a different session
     ChatRequest user2Request1 = new ChatRequest(null, "What are sealed classes?");
     ResponseEntity<ChatResponse> user2Response1 =
-        restTemplate.postForEntity("/chat/query", user2Request1, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", user2Request1, ChatResponse.class);
     String user2SessionId = user2Response1.getBody().getSessionId();
 
     // Verify sessions are different
@@ -232,21 +233,23 @@ class ChatUIEndToEndTest {
 
     // User 1 continues conversation
     ChatRequest user1Request2 = new ChatRequest(user1SessionId, "Tell me more");
-    restTemplate.postForEntity("/chat/query", user1Request2, ChatResponse.class);
+    restTemplate.postForEntity("/api/chat/query", user1Request2, ChatResponse.class);
 
     // User 2 continues conversation
     ChatRequest user2Request2 = new ChatRequest(user2SessionId, "Give examples");
-    restTemplate.postForEntity("/chat/query", user2Request2, ChatResponse.class);
+    restTemplate.postForEntity("/api/chat/query", user2Request2, ChatResponse.class);
 
     // Verify User 1 history
     ResponseEntity<ChatMessage[]> user1History =
-        restTemplate.getForEntity("/chat/history?sessionId=" + user1SessionId, ChatMessage[].class);
+        restTemplate.getForEntity(
+            "/api/chat/history?sessionId=" + user1SessionId, ChatMessage[].class);
     assertThat(user1History.getBody()).hasSize(4);
     assertThat(user1History.getBody()[0].content()).contains("records");
 
     // Verify User 2 history
     ResponseEntity<ChatMessage[]> user2History =
-        restTemplate.getForEntity("/chat/history?sessionId=" + user2SessionId, ChatMessage[].class);
+        restTemplate.getForEntity(
+            "/api/chat/history?sessionId=" + user2SessionId, ChatMessage[].class);
     assertThat(user2History.getBody()).hasSize(4);
     assertThat(user2History.getBody()[0].content()).contains("sealed classes");
   }
@@ -272,7 +275,7 @@ class ChatUIEndToEndTest {
     String webSocketSessionId = wsSession.getId();
     ChatRequest request = new ChatRequest(null, "Explain records", webSocketSessionId);
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     // Verify query succeeds
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -290,7 +293,7 @@ class ChatUIEndToEndTest {
     // Test with invalid session ID - system should handle gracefully
     ChatRequest invalidRequest = new ChatRequest("invalid-session-id", "What are records?");
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", invalidRequest, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", invalidRequest, ChatResponse.class);
 
     // Should handle gracefully and return a valid response
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

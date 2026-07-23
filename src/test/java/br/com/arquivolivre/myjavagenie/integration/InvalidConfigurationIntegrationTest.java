@@ -1,43 +1,61 @@
 package br.com.arquivolivre.myjavagenie.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import br.com.arquivolivre.myjavagenie.config.ModelConfig;
+import br.com.arquivolivre.myjavagenie.config.QueryConfig;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Integration test for invalid configuration handling. Tests Requirement 7.5: Fail startup with
- * descriptive error message
+ * Validation checks for invalid configuration values. Tests Requirement 7.5 without mutating
+ * JVM-wide system properties (which would poison later SpringBoot tests).
  */
 class InvalidConfigurationIntegrationTest {
 
-  /** Test Requirement 7.5: System fails startup with invalid configuration */
+  private Validator validator;
+
+  @BeforeEach
+  void setUp() {
+    validator = Validation.buildDefaultValidatorFactory().getValidator();
+  }
+
+  /** Test Requirement 7.5: blank provider is rejected */
   @Test
   void testInvalidModelProviderConfiguration() {
-    System.setProperty("model.provider", "invalid-provider");
-    System.setProperty("vector-db.type", "chroma");
-    System.setProperty("vector-db.connection-url", "http://localhost:8000");
-    System.setProperty("vector-db.collection-name", "test");
+    ModelConfig config = new ModelConfig();
+    config.setProvider(" ");
+    config.setTemperature(0.7);
+    config.setMaxTokens(100);
 
-    // Application should fail to start with invalid provider
-    // Note: This test validates that the system properly validates configuration
-    // In a real scenario, the ApplicationStartupListener would catch this
+    Set<ConstraintViolation<ModelConfig>> violations = validator.validate(config);
+    assertThat(violations).isNotEmpty();
   }
 
   /** Test Requirement 7.5: Missing required configuration */
   @Test
   void testMissingRequiredConfiguration() {
-    // Clear all properties to simulate missing configuration
-    System.clearProperty("model.provider");
-    System.clearProperty("vector-db.connection-url");
+    ModelConfig config = new ModelConfig();
+    config.setTemperature(0.7);
+    config.setMaxTokens(100);
 
-    // Application should fail to start with missing required config
-    // The validation logic in ConfigurationProvider should catch this
+    Set<ConstraintViolation<ModelConfig>> violations = validator.validate(config);
+    assertThat(violations).isNotEmpty();
   }
 
   /** Test Requirement 7.5: Invalid numeric configuration values */
   @Test
   void testInvalidNumericConfiguration() {
-    System.setProperty("model.temperature", "5.0"); // Invalid: should be 0-2
-    System.setProperty("query.max-retrieved-chunks", "-1"); // Invalid: should be positive
+    QueryConfig queryConfig = new QueryConfig();
+    queryConfig.setMaxRetrievedChunks(-1);
+    queryConfig.setSimilarityThreshold(5.0);
+    queryConfig.setTimeoutSeconds(10);
 
-    // Application should validate numeric ranges
+    Set<ConstraintViolation<QueryConfig>> violations = validator.validate(queryConfig);
+    assertThat(violations).isNotEmpty();
   }
 }

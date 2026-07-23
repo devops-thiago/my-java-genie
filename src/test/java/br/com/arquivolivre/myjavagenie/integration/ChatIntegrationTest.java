@@ -67,6 +67,7 @@ class ChatIntegrationTest {
         () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
     registry.add("vector-db.collection-name", () -> "test_chat_docs");
     registry.add("rag.startup-validation.enabled", () -> "false");
+    registry.add("opentelemetry.enabled", () -> "false");
 
     // Configure to use OpenAI provider (will be mocked)
     registry.add("model.provider", () -> "openai");
@@ -153,7 +154,7 @@ class ChatIntegrationTest {
     ChatRequest request = new ChatRequest(null, "What are records in Java?");
 
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     ChatResponse chatResponse = response.getBody();
@@ -170,7 +171,7 @@ class ChatIntegrationTest {
     // First message - create session
     ChatRequest request1 = new ChatRequest(null, "What are records in Java?");
     ResponseEntity<ChatResponse> response1 =
-        restTemplate.postForEntity("/chat/query", request1, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request1, ChatResponse.class);
 
     assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.OK);
     String sessionId = response1.getBody().getSessionId();
@@ -179,14 +180,14 @@ class ChatIntegrationTest {
     // Second message - use same session
     ChatRequest request2 = new ChatRequest(sessionId, "What are sealed classes?");
     ResponseEntity<ChatResponse> response2 =
-        restTemplate.postForEntity("/chat/query", request2, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request2, ChatResponse.class);
 
     assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response2.getBody().getSessionId()).isEqualTo(sessionId);
 
     // Verify history contains both messages
     ResponseEntity<ChatMessage[]> historyResponse =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
 
     assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     ChatMessage[] messages = historyResponse.getBody();
@@ -209,13 +210,13 @@ class ChatIntegrationTest {
     // Create a session with messages
     ChatRequest request = new ChatRequest(null, "Explain Java records");
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     String sessionId = response.getBody().getSessionId();
 
     // Retrieve history
     ResponseEntity<ChatMessage[]> historyResponse =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
 
     assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     ChatMessage[] messages = historyResponse.getBody();
@@ -235,7 +236,7 @@ class ChatIntegrationTest {
 
     ResponseEntity<ChatMessage[]> historyResponse =
         restTemplate.getForEntity(
-            "/chat/history?sessionId=" + nonExistentSessionId, ChatMessage[].class);
+            "/api/chat/history?sessionId=" + nonExistentSessionId, ChatMessage[].class);
 
     assertThat(historyResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
@@ -247,26 +248,26 @@ class ChatIntegrationTest {
     // Create a session with messages
     ChatRequest request1 = new ChatRequest(null, "What are records?");
     ResponseEntity<ChatResponse> response1 =
-        restTemplate.postForEntity("/chat/query", request1, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request1, ChatResponse.class);
 
     String sessionId = response1.getBody().getSessionId();
 
     // Add another message
     ChatRequest request2 = new ChatRequest(sessionId, "What are sealed classes?");
-    restTemplate.postForEntity("/chat/query", request2, ChatResponse.class);
+    restTemplate.postForEntity("/api/chat/query", request2, ChatResponse.class);
 
     // Verify history has messages
     ResponseEntity<ChatMessage[]> historyBefore =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
     assertThat(historyBefore.getBody()).isNotNull();
     assertThat(historyBefore.getBody().length).isGreaterThan(0);
 
     // Clear history
-    restTemplate.delete("/chat/history?sessionId=" + sessionId);
+    restTemplate.delete("/api/chat/history?sessionId=" + sessionId);
 
     // Verify history is empty
     ResponseEntity<ChatMessage[]> historyAfter =
-        restTemplate.getForEntity("/chat/history?sessionId=" + sessionId, ChatMessage[].class);
+        restTemplate.getForEntity("/api/chat/history?sessionId=" + sessionId, ChatMessage[].class);
     assertThat(historyAfter.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(historyAfter.getBody()).isEmpty();
   }
@@ -279,7 +280,7 @@ class ChatIntegrationTest {
 
     ResponseEntity<Void> response =
         restTemplate.exchange(
-            "/chat/history?sessionId=" + nonExistentSessionId,
+            "/api/chat/history?sessionId=" + nonExistentSessionId,
             org.springframework.http.HttpMethod.DELETE,
             null,
             Void.class);
@@ -294,7 +295,7 @@ class ChatIntegrationTest {
     ChatRequest request = new ChatRequest(null, "Tell me about records");
 
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     ChatResponse chatResponse = response.getBody();
@@ -335,7 +336,7 @@ class ChatIntegrationTest {
 
     // Send a chat query with WebSocket session ID
     ChatRequest request = new ChatRequest(null, "What are records?", webSocketSessionId);
-    restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+    restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     // Wait for completion message
     completionFuture.get(10, TimeUnit.SECONDS);
@@ -369,7 +370,7 @@ class ChatIntegrationTest {
     ChatRequest request = new ChatRequest(null, "");
 
     ResponseEntity<ChatResponse> response =
-        restTemplate.postForEntity("/chat/query", request, ChatResponse.class);
+        restTemplate.postForEntity("/api/chat/query", request, ChatResponse.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
   }

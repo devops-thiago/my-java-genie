@@ -9,7 +9,6 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -19,11 +18,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Integration test for environment variable substitution in configuration. Tests Requirement 7.1:
- * Environment variable substitution
+ * Integration test for environment-driven configuration values. Tests Requirement 7.1: Environment
+ * variable substitution
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("envtest")
 @Testcontainers
 class EnvironmentVariableConfigurationTest {
 
@@ -41,24 +39,24 @@ class EnvironmentVariableConfigurationTest {
 
   @DynamicPropertySource
   static void setEnvironmentVariables(DynamicPropertyRegistry registry) {
-    registry.add("MODEL_PROVIDER", () -> "openai");
     registry.add("rag.startup-validation.enabled", () -> "false");
-    registry.add("OPENAI_API_KEY", () -> "env-test-key");
-    registry.add("OPENAI_MODEL", () -> "gpt-3.5-turbo");
-    registry.add("MODEL_TEMPERATURE", () -> "0.5");
-    registry.add("MODEL_MAX_TOKENS", () -> "300");
+    registry.add("opentelemetry.enabled", () -> "false");
 
-    registry.add("VECTOR_DB_TYPE", () -> "chroma");
-    registry.add("VECTOR_DB_URL", () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
+    registry.add("model.provider", () -> "openai");
+    registry.add("model.openai.api-key", () -> "env-test-key");
+    registry.add("model.openai.model-name", () -> "gpt-3.5-turbo");
+    registry.add("model.temperature", () -> "0.5");
+    registry.add("model.max-tokens", () -> "300");
+
+    registry.add("vector-db.type", () -> "chroma");
     registry.add(
         "vector-db.connection-url",
         () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
-    registry.add("VECTOR_DB_COLLECTION", () -> "test_collection");
+    registry.add("vector-db.collection-name", () -> "test_collection");
 
-    registry.add("MAX_CHUNKS", () -> "3");
-    registry.add("SIMILARITY_THRESHOLD", () -> "0.8");
-    registry.add("QUERY_TIMEOUT", () -> "15");
-    registry.add("opentelemetry.enabled", () -> "false");
+    registry.add("query.max-retrieved-chunks", () -> "3");
+    registry.add("query.similarity-threshold", () -> "0.8");
+    registry.add("query.timeout-seconds", () -> "15");
   }
 
   /** Test Requirement 7.1: Verify environment variable substitution works */

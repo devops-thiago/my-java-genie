@@ -58,6 +58,7 @@ class QueryFlowIntegrationTest {
         () -> "http://localhost:" + chromaContainer.getMappedPort(8000));
     registry.add("vector-db.collection-name", () -> "test_java25_docs");
     registry.add("rag.startup-validation.enabled", () -> "false");
+    registry.add("opentelemetry.enabled", () -> "false");
 
     // Configure to use OpenAI provider (will be mocked)
     registry.add("model.provider", () -> "openai");
