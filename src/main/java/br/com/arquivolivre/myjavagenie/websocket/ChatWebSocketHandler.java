@@ -3,6 +3,7 @@ package br.com.arquivolivre.myjavagenie.websocket;
 import br.com.arquivolivre.myjavagenie.model.QueryStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -12,28 +13,37 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * WebSocket handler for real-time chat updates. Manages WebSocket connections and sends query
  * status updates to clients.
+ *
+ * <p>Clients may register with a stable id via {@code /ws/chat?sessionId=...} (used by the chat
+ * UI). When omitted, the Spring WebSocket session id is used.
  */
 @Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
   private static final Logger logger = LoggerFactory.getLogger(ChatWebSocketHandler.class);
+  private static final String CLIENT_SESSION_ATTR = "clientSessionId";
 
   private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-    String sessionId = session.getId();
+    String sessionId = resolveClientSessionId(session);
+    session.getAttributes().put(CLIENT_SESSION_ATTR, sessionId);
     sessions.put(sessionId, session);
     logger.info("WebSocket connection established: {}", sessionId);
   }
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-    String sessionId = session.getId();
+    String sessionId = (String) session.getAttributes().get(CLIENT_SESSION_ATTR);
+    if (sessionId == null) {
+      sessionId = session.getId();
+    }
     sessions.remove(sessionId);
     logger.info("WebSocket connection closed: {} with status: {}", sessionId, status);
   }
@@ -103,5 +113,17 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
    */
   public int getConnectionCount() {
     return sessions.size();
+  }
+
+  private static String resolveClientSessionId(WebSocketSession session) {
+    URI uri = session.getUri();
+    if (uri != null) {
+      String sessionId =
+          UriComponentsBuilder.fromUri(uri).build().getQueryParams().getFirst("sessionId");
+      if (sessionId != null && !sessionId.isBlank()) {
+        return sessionId;
+      }
+    }
+    return session.getId();
   }
 }

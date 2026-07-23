@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
@@ -326,13 +327,13 @@ class ChatIntegrationTest {
           }
         };
 
-    String wsUrl = "ws://localhost:" + port + "/ws/chat";
+    // Client-chosen id must match ?sessionId= (server Spring WS id differs from client id)
+    String webSocketSessionId = UUID.randomUUID().toString();
+    String wsUrl = "ws://localhost:" + port + "/ws/chat?sessionId=" + webSocketSessionId;
     WebSocketSession wsSession = client.execute(handler, wsUrl).get(5, TimeUnit.SECONDS);
 
     assertThat(wsSession).isNotNull();
     assertThat(wsSession.isOpen()).isTrue();
-
-    String webSocketSessionId = wsSession.getId();
 
     // Send a chat query with WebSocket session ID
     ChatRequest request = new ChatRequest(null, "What are records?", webSocketSessionId);

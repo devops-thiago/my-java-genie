@@ -51,6 +51,11 @@ public class ChatService {
 
     // Get or create session
     ChatSession session = sessionManager.getOrCreateSession(sessionId);
+    // Prefer explicit WS id; otherwise use chat session id (UI connects with ?sessionId=...)
+    String statusSessionId =
+        (webSocketSessionId != null && !webSocketSessionId.isBlank())
+            ? webSocketSessionId
+            : session.getSessionId();
 
     // Add user message to session
     ChatMessage userMessage = new ChatMessage(ChatMessage.MessageRole.USER, message);
@@ -59,21 +64,21 @@ public class ChatService {
 
     // Send embedding status
     sendStatusUpdate(
-        webSocketSessionId,
+        statusSessionId,
         session.getSessionId(),
         QueryStatus.ProcessingStage.EMBEDDING,
         "Generating query embedding");
 
     // Send searching status
     sendStatusUpdate(
-        webSocketSessionId,
+        statusSessionId,
         session.getSessionId(),
         QueryStatus.ProcessingStage.SEARCHING,
         "Searching for relevant documents");
 
     // Send generating status
     sendStatusUpdate(
-        webSocketSessionId,
+        statusSessionId,
         session.getSessionId(),
         QueryStatus.ProcessingStage.GENERATING,
         "Generating response");
@@ -98,10 +103,10 @@ public class ChatService {
             session.getSessionId());
 
     // Send completion status
-    if (webSocketSessionId != null && webSocketHandler != null) {
+    if (webSocketHandler != null) {
       ChatResponse chatResponse = ChatResponse.fromQueryResponse(finalResponse);
       QueryStatus completionStatus = new QueryStatus(session.getSessionId(), chatResponse);
-      webSocketHandler.sendStatusUpdate(webSocketSessionId, completionStatus);
+      webSocketHandler.sendStatusUpdate(statusSessionId, completionStatus);
     }
 
     return finalResponse;
