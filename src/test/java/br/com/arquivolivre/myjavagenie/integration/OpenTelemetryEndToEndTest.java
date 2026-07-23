@@ -103,7 +103,7 @@ class OpenTelemetryEndToEndTest {
     wireMockServer.resetAll();
 
     stubFor(
-        post(urlPathEqualTo("/chat/completions"))
+        post(urlPathEqualTo("/v1/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
@@ -318,7 +318,7 @@ class OpenTelemetryEndToEndTest {
     // Mock an error response
     wireMockServer.resetAll();
     stubFor(
-        post(urlPathEqualTo("/chat/completions"))
+        post(urlPathEqualTo("/v1/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(500)

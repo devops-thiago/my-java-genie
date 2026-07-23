@@ -106,7 +106,7 @@ class ChatIntegrationTest {
 
     // Mock OpenAI chat completion endpoint
     stubFor(
-        post(urlPathEqualTo("/chat/completions"))
+        post(urlPathEqualTo("/v1/chat/completions"))
             .willReturn(
                 aResponse()
                     .withStatus(200)
