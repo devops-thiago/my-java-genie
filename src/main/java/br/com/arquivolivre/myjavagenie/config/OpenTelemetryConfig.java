@@ -10,6 +10,7 @@ import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.logs.SdkLoggerProvider;
 import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
@@ -103,6 +104,14 @@ public class OpenTelemetryConfig {
       logger.warn(
           "Global OpenTelemetry already registered; using SDK as Spring bean only: {}",
           LogSanitizer.sanitize(alreadyRegistered.getMessage()));
+    }
+
+    // Bridge Logback log events into the OTel LoggerProvider so application logs are exported
+    // over OTLP. The appender is declared in logback-spring.xml and buffers events until this
+    // install call wires it to the freshly built SDK.
+    if (properties.logs().enabled()) {
+      OpenTelemetryAppender.install(openTelemetry);
+      logger.info("OpenTelemetry Logback appender installed for log export");
     }
 
     logger.info("OpenTelemetry SDK initialized successfully");

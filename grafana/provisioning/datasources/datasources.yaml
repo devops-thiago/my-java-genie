@@ -13,9 +13,33 @@ datasources:
     uid: tempo
     access: proxy
     url: http://tempo:3200
+    jsonData:
+      # Traces -> Logs: from a span, jump to the Loki logs for that trace. The app emits the
+      # trace id inside each OTLP log line ("traceid":"..."), so match it with a line filter.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: false
+        customQuery: true
+        query: '{service_name="java-rag-system"} |= "$${__trace.traceId}"'
+      # Service graph is backed by Tempo's metrics-generator span metrics stored in Mimir.
+      serviceMap:
+        datasourceUid: mimir
+      nodeGraph:
+        enabled: true
 
   - name: Loki
     type: loki
     uid: loki
     access: proxy
     url: http://loki:3100
+    jsonData:
+      # Logs -> Traces: extract the trace id from the JSON log line and link to Tempo.
+      derivedFields:
+        - name: TraceID
+          matcherType: regex
+          matcherRegex: '"traceid":"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+          urlDisplayLabel: 'View Trace in Tempo'
