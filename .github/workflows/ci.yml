@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 env:
   MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2"

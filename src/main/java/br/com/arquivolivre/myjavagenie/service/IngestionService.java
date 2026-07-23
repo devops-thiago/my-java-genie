@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,7 @@ public class IngestionService {
    * @throws IngestionException if ingestion fails completely
    */
   public IngestionResult ingestDocuments(Path documentPath) {
+    Objects.requireNonNull(documentPath, "documentPath must not be null");
     logger.info("Starting document ingestion from path: {}", LogSanitizer.sanitize(documentPath));
     Instant startTime = Instant.now();
 
@@ -75,11 +77,10 @@ public class IngestionService {
         try {
           processDocument(document, result);
         } catch (Exception e) {
-          logger.error(
-              "Failed to process document: {}",
-              LogSanitizer.sanitize(document.getMetadata().getSourceFile()),
-              e);
-          result.addFailedDocument(document.getMetadata().getSourceFile());
+          var metadata = document.getMetadata();
+          String sourceFile = metadata != null ? metadata.getSourceFile() : "unknown";
+          logger.error("Failed to process document: {}", LogSanitizer.sanitize(sourceFile), e);
+          result.addFailedDocument(sourceFile);
         }
       }
 
@@ -97,7 +98,8 @@ public class IngestionService {
 
   /** Process a single document: chunk it, generate embeddings, and store in vector database. */
   private void processDocument(Document document, IngestionResult result) {
-    String sourceFile = document.getMetadata().getSourceFile();
+    var metadata = document.getMetadata();
+    String sourceFile = metadata != null ? metadata.getSourceFile() : null;
     logger.debug("Processing document: {}", LogSanitizer.sanitize(sourceFile));
 
     // Check if document already exists (resumption capability)
@@ -194,6 +196,7 @@ public class IngestionService {
    * @throws IngestionException if ingestion fails
    */
   public IngestionResult ingestDocument(Path documentPath) {
+    Objects.requireNonNull(documentPath, "documentPath must not be null");
     logger.info("Starting single document ingestion: {}", LogSanitizer.sanitize(documentPath));
     Instant startTime = Instant.now();
 
