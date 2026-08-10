@@ -32,6 +32,11 @@ Thumbs.db
 application-local.yml
 *.env
 
+# Local JDK-docs corpus (provisioned on the VM / mounted via Docker).
+# See docs/README.md for how to obtain the corpus.
+docs/*
+!docs/README.md
+
 # React Build Output
 src/main/resources/static/
 
